@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MotoLog">
+<link rel="manifest" href="manifest.json" id="manifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.png">
+<title>MotoLog 油耗保養</title>
+<style>
+/* 與桌面版相同的企業版配色 */
+:root {
+  --bg: #f1f5f9; --card: #ffffff; --border: #e2e8f0; --input: #cbd5e1; --stripe: #f8fafc; --field: #ffffff;
+  --hover: #eff6ff; --text: #0f172a; --sub: #475569; --muted: #94a3b8;
+  --primary: #2563eb; --primary-d: #1d4ed8; --primary-l: #dbeafe;
+  --side: #0f172a; --side-hover: #1e293b; --side-text: #94a3b8;
+  --danger: #dc2626; --danger-l: #fef2f2; --over-fg: #b91c1c;
+  --warn: #d97706; --warn-l: #fffbeb; --soon-fg: #b45309;
+  --ok: #16a34a; --violet: #7c3aed; --amber: #f59e0b; --avg-fg: #b45309;
+  --grid: #eef2f7; --area: #eff6ff;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1120; --card: #141c2c; --border: #243044; --input: #334155; --stripe: #182235; --field: #0f1727;
+    --hover: #1c3150; --text: #e2e8f0; --sub: #94a3b8; --muted: #64748b;
+    --primary: #3b82f6; --primary-d: #2563eb; --primary-l: #1e3a5f;
+    --side: #060a14; --side-hover: #151d2d; --side-text: #94a3b8;
+    --danger: #f87171; --danger-l: #3a1c24; --over-fg: #fca5a5;
+    --warn: #fbbf24; --warn-l: #352a12; --soon-fg: #fcd34d;
+    --ok: #4ade80; --violet: #a78bfa; --amber: #f59e0b; --avg-fg: #fbbf24;
+    --grid: #222d42; --area: #132644;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1120; --card: #141c2c; --border: #243044; --input: #334155; --stripe: #182235; --field: #0f1727;
+  --hover: #1c3150; --text: #e2e8f0; --sub: #94a3b8; --muted: #64748b;
+  --primary: #3b82f6; --primary-d: #2563eb; --primary-l: #1e3a5f;
+  --side: #060a14; --side-hover: #151d2d; --side-text: #94a3b8;
+  --danger: #f87171; --danger-l: #3a1c24; --over-fg: #fca5a5;
+  --warn: #fbbf24; --warn-l: #352a12; --soon-fg: #fcd34d;
+  --ok: #4ade80; --violet: #a78bfa; --amber: #f59e0b; --avg-fg: #fbbf24;
+  --grid: #222d42; --area: #132644;
+  --shadow: none;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.5 "Microsoft JhengHei UI", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* 頂部列 */
+.top {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; background: var(--side); color: #fff;
+}
+.logo { width: 34px; height: 34px; border-radius: 9px; background: var(--primary); display: grid; place-items: center;
+  font-weight: 700; font-size: 18px; flex: none; }
+.brand { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.brand b { font-size: 15px; }
+.brand span { font-size: 11px; color: var(--side-text); white-space: nowrap; }
+@media (max-width: 420px) { .brand span { display: none; } }
+.veh { margin-left: auto; min-width: 0; max-width: 55%; background: var(--side-hover); color: #fff; border: 1px solid #334155;
+  border-radius: 8px; padding: 7px 10px; font-size: 14px; }
+.icon-btn { flex: none; width: 36px; height: 36px; border-radius: 8px; border: 0; background: var(--side-hover); color: #fff;
+  font-size: 17px; cursor: pointer; }
+
+/* 版面 */
+.layout { display: block; }
+.side { display: none; }
+main { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); max-width: 1180px; margin: 0 auto; }
+.page-head { margin: 2px 0 14px; }
+.page-head h1 { font-size: 21px; margin: 0; }
+.page-head p { margin: 2px 0 0; color: var(--sub); font-size: 13px; }
+
+/* 底部分頁列（手機） */
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--card); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom);
+}
+.tabs a { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 0 7px; color: var(--muted);
+  text-decoration: none; font-size: 11px; }
+.tabs a .i { font-size: 20px; line-height: 1.1; filter: grayscale(1); opacity: .75; }
+.tabs a.on { color: var(--primary); font-weight: 700; }
+.tabs a.on .i { filter: none; opacity: 1; }
+
+/* 寬螢幕：左側選單（與桌面版相同） */
+@media (min-width: 900px) {
+  .layout { display: grid; grid-template-columns: 228px 1fr; }
+  .side { display: flex; flex-direction: column; position: sticky; top: 56px; height: calc(100vh - 56px);
+    background: var(--side); padding: 18px 12px; gap: 2px; }
+  .side .lbl { color: #64748b; font-size: 12px; font-weight: 700; padding: 0 12px 6px; }
+  .side a { display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 8px; color: var(--side-text);
+    text-decoration: none; border-left: 4px solid transparent; }
+  .side a:hover { background: var(--side-hover); }
+  .side a.on { background: var(--side-hover); color: #fff; font-weight: 700; border-left-color: #3b82f6; }
+  .side .foot { margin-top: auto; color: #64748b; font-size: 12px; padding: 0 12px; }
+  .tabs { display: none; }
+  main { padding: 24px 28px 48px; }
+  .top { padding: 10px 24px; }
+}
+
+/* 卡片與數據 */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.card + .card, .card + .grid, .grid + .card, .grid + .grid { margin-top: 12px; }
+.grid > .card { margin-top: 0; }
+.card-pad { padding: 14px 16px; }
+.card h2 { font-size: 15px; margin: 0; }
+.card .sub { color: var(--muted); font-size: 12px; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 14px 16px 6px; }
+.grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 640px) { .grid.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid.g3, .grid.g6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid.g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .grid.g6 { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.stat { padding: 12px 14px; border-top: 3px solid var(--accent, transparent); min-width: 0; }
+.stat .k { color: var(--sub); font-size: 12px; }
+.stat .v { font-size: 20px; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .s { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat.sm .v { font-size: 17px; }
+.c-ok { color: var(--ok) !important; } .c-danger { color: var(--danger) !important; } .c-warn { color: var(--warn) !important; }
+.c-muted { color: var(--muted) !important; }
+
+/* 清單 */
+.list { padding: 0; margin: 0; list-style: none; }
+.month { display: flex; justify-content: space-between; padding: 14px 4px 6px; color: var(--sub); font-size: 13px; font-weight: 700; }
+.item { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); cursor: pointer; }
+.item:first-child { border-top: 0; }
+.item:active, .item:hover { background: var(--hover); }
+.item .main { flex: 1; min-width: 0; }
+.item .t1 { font-weight: 700; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.item .t2 { color: var(--sub); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .side-v { text-align: right; flex: none; }
+.item .amt { font-weight: 700; font-size: 16px; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  background: var(--primary-l); color: var(--primary); }
+.badge.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.badge.over { background: var(--danger-l); color: var(--over-fg); }
+.badge.soon { background: var(--warn-l); color: var(--soon-fg); }
+.badge.none { background: var(--stripe); color: var(--muted); }
+.empty { text-align: center; color: var(--muted); padding: 36px 16px; }
+.empty b { display: block; color: var(--sub); font-size: 16px; margin-bottom: 4px; }
+
+/* 按鈕 */
+.btn { border: 1px solid var(--input); background: var(--card); color: var(--text); border-radius: 9px; padding: 9px 16px;
+  font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.btn.sm { padding: 5px 11px; font-size: 13px; }
+.btn:disabled { opacity: .55; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fab { position: fixed; right: 18px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 19; height: 54px;
+  min-width: 54px; padding: 0 20px; border-radius: 27px; border: 0; background: var(--primary); color: #fff; font-size: 16px;
+  font-weight: 700; box-shadow: 0 6px 18px rgba(37, 99, 235, .4); cursor: pointer; }
+@media (min-width: 900px) { .fab { bottom: 28px; right: 32px; } }
+.seg { display: inline-flex; background: var(--border); gap: 1px; border-radius: 9px; overflow: hidden; border: 1px solid var(--border); }
+.seg button { border: 0; background: var(--card); color: var(--sub); padding: 7px 14px; cursor: pointer; font-size: 13.5px; }
+.seg button.on { background: var(--primary); color: #fff; font-weight: 700; }
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.quick .btn { padding: 13px; font-size: 15px; }
+
+/* 圖表 */
+.chart { padding: 4px 8px 10px; }
+.chart svg { display: block; width: 100%; }
+.chart text { font-size: 11px; fill: var(--muted); }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--sub); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.bar-row { padding: 6px 16px; }
+.bar-row .l { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.bar-row .l span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-row .l span:last-child { color: var(--sub); flex: none; }
+.bar { height: 6px; background: var(--grid); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 9px 10px; text-align: right; white-space: nowrap; border-top: 1px solid var(--border); }
+th { color: var(--sub); font-weight: 700; background: var(--stripe); border-top: 0; }
+th:first-child, td:first-child { text-align: left; }
+tr.sum td { font-weight: 700; background: var(--primary-l); }
+tr.dim td { color: var(--muted); }
+.up { color: var(--danger); } .down { color: var(--ok); }
+
+/* 油價 */
+.prices { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; padding: 4px 8px 14px; }
+.prices .n { color: var(--sub); font-size: 12px; }
+.prices .p { font-size: 22px; font-weight: 700; }
+.prices .d { font-size: 12px; }
+
+/* 底部表單（sheet） */
+.sheet-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(2, 6, 23, .55); display: flex; align-items: flex-end;
+  justify-content: center; }
+.sheet-wrap[hidden] { display: none; }
+.sheet { background: var(--card); width: 100%; max-width: 560px; max-height: 92vh; border-radius: 16px 16px 0 0;
+  display: flex; flex-direction: column; animation: up .18s ease-out; }
+@media (min-width: 640px) { .sheet-wrap { align-items: center; } .sheet { border-radius: 16px; } }
+@keyframes up { from { transform: translateY(30px); } }
+.sheet-head { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.sheet-head h2 { margin: 0; font-size: 17px; flex: 1; }
+.sheet-head .x { border: 0; background: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.sheet-body { overflow-y: auto; padding: 14px 16px 6px; }
+.sheet-foot { display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+.sheet-foot .primary { flex: 1; }
+.f { display: block; margin-bottom: 12px; }
+.f > span { display: block; color: var(--sub); font-size: 13px; margin-bottom: 4px; }
+.f input, .f select, .f textarea { width: 100%; border: 1px solid var(--input); background: var(--field); border-radius: 9px;
+  padding: 10px 12px; font-size: 16px; outline: none; }
+.f input:focus, .f select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); }
+.f .hint { color: var(--ok); font-size: 12px; font-weight: 700; margin-left: 6px; }
+.f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.check { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 15px; }
+.check input { width: 20px; height: 20px; accent-color: var(--primary); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips label { position: relative; }
+.chips input { position: absolute; opacity: 0; }
+.chips span { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--input); font-size: 14px; cursor: pointer; }
+.chips input:checked + span { background: var(--primary); border-color: var(--primary); color: #fff; }
+.err { color: var(--danger); font-size: 13px; min-height: 1em; margin: 0 0 4px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60;
+  background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  max-width: calc(100% - 32px); }
+.toast[hidden] { display: none; }
+.more a { display: flex; align-items: center; gap: 12px; padding: 15px 16px; border-top: 1px solid var(--border); color: var(--text);
+  text-decoration: none; }
+.more a:first-child { border-top: 0; }
+.more a .i { font-size: 20px; }
+.more a .d { color: var(--muted); font-size: 12.5px; }
+.more a::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 20px; }
+.gate { max-width: 420px; margin: 12vh auto; text-align: center; padding: 24px; }
+.gate .logo { width: 56px; height: 56px; font-size: 30px; margin: 0 auto 14px; border-radius: 14px; color: #fff; }
+.banner { margin-bottom: 14px; border-left: 4px solid var(--warn); }
+.banner.off { background: var(--warn-l); }
+.banner .sub { color: var(--sub); font-size: 13px; margin-top: 2px; }
+.loading { text-align: center; color: var(--muted); padding: 60px 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">M</div>
+  <div class="brand"><b>MotoLog</b><span>油耗保養管理系統</span></div>
+  <select class="veh" id="veh" aria-label="目前車輛"></select>
+  <button class="icon-btn" id="reload" title="重新整理" aria-label="重新整理">↻</button>
+</header>
+<div class="layout">
+  <nav class="side" id="side"></nav>
+  <main id="view"><div class="loading">載入中…</div></main>
+</div>
+<nav class="tabs" id="tabs"></nav>
+<button class="fab" id="fab" hidden></button>
+<div class="sheet-wrap" id="sheet" hidden>
+  <form class="sheet" id="sheetForm" novalidate>
+    <div class="sheet-head"><h2 id="sheetTitle"></h2><button type="button" class="x" id="sheetClose" aria-label="關閉">✕</button></div>
+    <div class="sheet-body" id="sheetBody"></div>
+    <div class="sheet-foot" id="sheetFoot"></div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- 基本工具
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const n0 = v => Math.round(v).toLocaleString("zh-TW");
+const money = v => (v < 0 ? "-$" : "$") + n0(Math.abs(v || 0));
+const fmt = (v, d = 2) => v == null || v === "" ? "" : (+(+v).toFixed(d)).toString();
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const TODAY = () => iso(new Date());
+const WD = "日一二三四五六";
+const dayLabel = s => { const d = new Date(s + "T00:00:00"); return `${s.slice(5).replace("-", "/")}（${WD[d.getDay()]}）`; };
+const STATE_TEXT = { over: "該保養了", soon: "即將到期", ok: "正常", none: "尚無紀錄" };
+
+// 兩種連線方式：
+//   直連：網頁由電腦提供（家用 Wi-Fi / Tailscale），網址 # 後面帶電腦的連線金鑰
+//   雲端同步：網頁放在 GitHub Pages，網址 ? 後面帶 Google 試算表中繼代號 s 與金鑰 k；
+//            手機只跟雲端溝通，電腦一上網就自動取回匯入，兩邊不必同時在線
+const HOSTED = location.hostname.endsWith(".github.io");
+const qs = new URLSearchParams(location.search);
+let RELAY = null;
+try { RELAY = JSON.parse(store.get("motolog_relay") || "null"); } catch {}
+if (qs.get("s") && qs.get("k")) {  // 網址保留不清除：「加入主畫面」時才會一起帶走
+  RELAY = { s: qs.get("s"), k: qs.get("k") };
+  store.set("motolog_relay", JSON.stringify(RELAY));
+}
+if (!HOSTED && !qs.get("s")) RELAY = null;  // 電腦提供的網頁一律直連
+const RELAY_URL = () => `https://script.google.com/macros/s/${RELAY.s}/exec`;
+
+let KEY = store.get("motolog_key") || "";
+const m = location.hash.match(/k=([\w-]+)/);
+if (m) { KEY = m[1]; store.set("motolog_key", KEY); history.replaceState(null, "", location.pathname + location.search + "#overview"); }
+// 「加入主畫面」的 App 在 iPhone 上和 Safari 資料分開：讓 manifest 的啟動網址帶著金鑰（直連時）
+const keyManifest = () => { if (KEY && !HOSTED) $("#manifest").href = "manifest.json?k=" + encodeURIComponent(KEY); };
+keyManifest();
+// HTTPS 下把網頁存在手機上：電腦關機、沒訊號時照樣能開啟並離線記錄
+if ("serviceWorker" in navigator && window.isSecureContext)
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+const ready = () => RELAY ? !!RELAY.s : !!KEY;
+const PEER = () => RELAY ? "雲端" : "電腦";
+
+const WEB_VERSION = "__WEB_VERSION__";  // 電腦送出網頁時填入版本號
+let S = null;          // 伺服器回傳的完整狀態
+let VID = +store.get("motolog_vid") || null;
+let OFFLINE = null;    // 連不到電腦時：顯示中的離線資料是何時取得的
+let CONNECTING = null; // 剛開啟、先顯示手機上的資料，正在連線電腦
+let CLOUD = null;      // 雲端同步：{pending: 已到雲端、等電腦匯入, rejected: 被電腦退回, at: 電腦上次上傳資料的時間}
+
+// 雲端中繼（Google Apps Script）：用 text/plain POST，瀏覽器不必先做跨網域預檢
+async function relay(payload, timeout = 25000) {
+  let r;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);
+  try {
+    r = await fetch(RELAY_URL(), { method: "POST", body: JSON.stringify({ ...payload, k: RELAY.k }), signal: ctl.signal });
+  } catch {
+    throw Object.assign(new Error("沒有網路，或暫時連不到 Google 雲端"), { network: true });
+  } finally { clearTimeout(timer); }
+  const j = await r.json().catch(() => null);
+  if (!j) throw Object.assign(new Error("雲端暫時沒有回應"), { network: true });
+  if (j.error) {
+    if (/金鑰/.test(j.error)) { showGate(true); throw Object.assign(new Error(j.error), { auth: true }); }
+    throw new Error(j.error);
+  }
+  return j;
+}
+
+// 取得目前車輛的畫面資料
+async function fetchState() {
+  if (!RELAY) return api("/api/state" + (VID ? `?v=${VID}` : ""));
+  const j = await relay({ a: "state" });
+  CLOUD = { pending: j.pending || [], rejected: j.rejected || [], at: j.snapshot?.at };
+  const snap = j.snapshot;
+  if (!snap) throw new Error("電腦還沒上傳過資料：請在電腦的 MotoLog「檔案 → 雲端同步設定」完成設定");
+  const { states, ...shared } = snap;
+  const ids = Object.keys(states || {});
+  const vid = states?.[VID] ? String(VID) : ids[0];
+  return { ...shared, ...(vid ? states[vid] : { vehicle_id: null }), vehicle_id: vid ? +vid : null };
+}
+
+async function dismissRejected(id) {
+  try { await relay({ a: "dismiss", id }); CLOUD.rejected = CLOUD.rejected.filter(o => o.id !== id); render(); }
+  catch (e) { toast(e.message, 4000); }
+}
+
+async function api(path, body, timeout = 10000) {
+  let r;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);  // 電腦關機時別讓手機一直等
+  try {
+    r = await fetch(path, { method: body ? "POST" : "GET", cache: "no-store", signal: ctl.signal,
+      headers: { "X-Key": KEY, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  } catch {
+    throw Object.assign(new Error("無法連線到電腦，請確認電腦上的 MotoLog 有開啟手機版，且手機連在同一個 Wi-Fi"), { network: true });
+  } finally { clearTimeout(timer); }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { showGate(store.get("motolog_key") === KEY); throw Object.assign(new Error(j.error || "需要重新掃描 QR Code"), { auth: true }); }
+  if (r.status >= 500) throw Object.assign(new Error(j.error || `錯誤 ${r.status}`), { network: true });
+  if (!r.ok) throw new Error(j.error || `錯誤 ${r.status}`);
+  return j;
+}
+
+// ---------------------------------------------------------------- 離線暫存：先存在手機，連得到電腦時自動上傳
+const outbox = () => { try { return JSON.parse(store.get("motolog_outbox") || "[]"); } catch { return []; } };
+const saveOutbox = list => store.set("motolog_outbox", JSON.stringify(list));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+
+function enqueue(path, body, label) {
+  const op = { id: uid(), path, body: { ...body, vehicle_id: VID }, label, vname: vehicleName(VID), at: new Date().toISOString() };
+  saveOutbox([...outbox(), op]);
+  return op.id;
+}
+function vehicleName(id) { return S?.vehicles?.find(v => v.id === id)?.name || ""; }
+
+let flushing = null;
+function flush(retryFailed) {
+  // 依序上傳；連不到電腦就整批留到下次，資料被電腦退回的留在佇列標示錯誤
+  return flushing ||= (async () => {
+    let sent = 0;
+    if (RELAY) {  // 雲端同步：整批送到雲端排隊（資料檢查由電腦匯入時進行）
+      const ops = outbox();
+      if (!ops.length) return 0;
+      try {
+        await relay({ a: "push", ops: ops.map(({ error, ...o }) => o) });
+        const ids = new Set(ops.map(o => o.id));
+        saveOutbox(outbox().filter(o => !ids.has(o.id)));
+        return ops.length;
+      } catch { return 0; }
+    }
+    for (const op of outbox()) {
+      if (op.error && !retryFailed) continue;
+      try {
+        await api(op.path, { ...op.body, op_id: op.id, force: true });
+        saveOutbox(outbox().filter(o => o.id !== op.id));
+        sent++;
+      } catch (e) {
+        if (e.network || e.auth) break;
+        saveOutbox(outbox().map(o => o.id === op.id ? { ...o, error: e.message } : o));
+      }
+    }
+    return sent;
+  })().finally(() => flushing = null);
+}
+
+async function syncNow(manual) {
+  // 雲端同步：雲端還有等電腦匯入的紀錄時，持續查看匯入結果
+  const waiting = RELAY && CLOUD?.pending?.length;
+  if (!manual && !OFFLINE && !waiting && !outbox().some(o => !o.error)) return;
+  if (manual) saveOutbox(outbox().map(({ error, ...o }) => o));  // 手動上傳：被退回的也再送一次
+  await load(!manual);
+}
+setInterval(() => { if (!document.hidden) syncNow(); }, 20000);
+window.addEventListener("online", () => syncNow());
+
+function cancelOp(id) {
+  const op = outbox().find(o => o.id === id);
+  if (op && confirm(`確定要取消這筆尚未上傳的紀錄？\n\n${op.label}`)) { saveOutbox(outbox().filter(o => o.id !== id)); render(); }
+}
+
+const hm = s => { const d = new Date(s); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+
+function statusBanner() {
+  const ops = outbox(), cloud = RELAY && CLOUD ? CLOUD : { pending: [], rejected: [] };
+  if (CONNECTING && !ops.length) return `<div class="card banner"><div class="card-pad sub">⟳ 正在連線到${PEER()}…（先顯示手機上的資料）</div></div>`;
+  let html = "";
+  if (OFFLINE || ops.length) {
+    const head = OFFLINE
+      ? (RELAY
+        ? `<b>⚠ 目前沒有網路</b><div class="sub">顯示的是 ${hm(OFFLINE)} 的資料。新增的紀錄會先存在手機，有網路時自動送到雲端。</div>`
+        : `<b>⚠ 目前連不到電腦</b><div class="sub">顯示的是 ${hm(OFFLINE)} 的資料。新增的紀錄會先存在手機，電腦開機並開啟 MotoLog 後自動上傳。</div>`)
+      : `<b>有 ${ops.length} 筆紀錄等待上傳</b>`;
+    html += `<div class="card banner ${OFFLINE ? "off" : ""}"><div class="card-pad">${head}</div>
+      ${ops.length ? `<ul class="list">${ops.map(o => `<li class="item" style="cursor:default">
+        <div class="main"><div class="t1">${esc(o.label)}<span class="badge ${o.error ? "over" : "soon"}">${o.error ? "被電腦退回" : "在手機上"}</span></div>
+          <div class="t2">${o.vname ? esc(o.vname) + " · " : ""}${hm(o.at)} 暫存${o.error ? " · " + esc(o.error) : ""}</div></div>
+        <div class="side-v"><button class="btn sm danger" onclick="cancelOp('${o.id}')">取消</button></div></li>`).join("")}</ul>
+        <div class="card-pad" style="padding-top:4px"><button class="btn sm primary" onclick="syncNow(true)">立即上傳</button></div>` : ""}</div>`;
+  }
+  if (cloud.pending.length) {  // 已到雲端：電腦一上網就會匯入
+    html += `<div class="card banner"><div class="card-pad"><b>☁ ${cloud.pending.length} 筆已送到雲端，等電腦匯入</b>
+      <div class="sub">電腦開機連上網路後會自動匯入${CLOUD.at ? `（電腦上次同步：${hm(CLOUD.at)}）` : ""}</div></div>
+      <ul class="list">${cloud.pending.map(o => `<li class="item" style="cursor:default"><div class="main">
+        <div class="t1">${esc(o.label)}<span class="badge">雲端</span></div>
+        <div class="t2">${o.vname ? esc(o.vname) + " · " : ""}${hm(o.at)} 記錄</div></div></li>`).join("")}</ul></div>`;
+  }
+  if (cloud.rejected.length) {
+    html += `<div class="card banner off"><div class="card-pad"><b>✖ ${cloud.rejected.length} 筆被電腦退回</b>
+      <div class="sub">資料有誤沒有匯入，請重新輸入</div></div>
+      <ul class="list">${cloud.rejected.map(o => `<li class="item" style="cursor:default"><div class="main">
+        <div class="t1">${esc(o.label)}</div><div class="t2" style="white-space:normal">${esc(o.error)}</div></div>
+        <div class="side-v"><button class="btn sm" onclick="dismissRejected('${esc(o.id)}')">知道了</button></div></li>`).join("")}</ul></div>`;
+  }
+  return html;
+}
+
+// 離線時顯示最後一次取得的資料
+function cacheState(st) {
+  try { localStorage.setItem("motolog_state_" + st.vehicle_id, JSON.stringify({ at: new Date().toISOString(), st })); } catch {}
+}
+function cachedState(vid) {
+  try { return JSON.parse(localStorage.getItem("motolog_state_" + vid) || "null"); } catch { return null; }
+}
+
+let toastTimer;
+function toast(msg, ms = 2600) {
+  const t = $("#toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, ms);
+}
+
+function showGate(wrong) {
+  const app = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  const cloud = HOSTED || RELAY;
+  $("#view").innerHTML = `<div class="gate card">
+    <div class="logo">M</div><h2>${wrong ? "連線金鑰已失效" : cloud ? "設定雲端同步" : "需要連線金鑰"}</h2>
+    <p class="sub">${wrong ? "電腦上的金鑰已變更，請重新掃描或貼上新的網址。" : cloud
+      ? "請在電腦 MotoLog 的「檔案 → 雲端同步設定」用手機相機掃描 QR Code；或按「複製手機網址」後貼到下面。"
+      : app ? "從主畫面開啟的 App 和瀏覽器的資料是分開的，第一次需要輸入金鑰。"
+      : "請在電腦上的 MotoLog 按 <b>F9</b>（或「檔案 → 手機／網頁版」），用手機相機掃描 QR Code。"}</p>
+    <form id="keyForm" style="text-align:left;margin-top:16px">
+      <label class="f"><span>${cloud ? "手機網址" : "連線金鑰（或貼上整個網址）"}</span>
+        <input name="k" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+          placeholder="${cloud ? "https://…/motolog/?s=…&k=…" : "例如 eRfU4o21lXXc"}"></label>
+      <p class="err" id="keyErr"></p>
+      <button class="btn primary" style="width:100%">連線</button>
+    </form>
+    ${cloud ? "" : `<p class="sub" style="margin-top:14px">金鑰在電腦 MotoLog 按 F9 的視窗中「連線金鑰」欄位</p>`}</div>`;
+  $("#fab").hidden = true;
+  $("#keyForm").onsubmit = async e => {
+    e.preventDefault();
+    const raw = e.target.k.value.trim();
+    const s = (raw.match(/[?&]s=([\w-]+)/) || [])[1], k = (raw.match(/k=([\w-]+)/) || [, raw])[1];
+    if (cloud && !s) { $("#keyErr").textContent = "請貼上電腦「雲端同步設定」視窗裡的手機網址"; return; }
+    if (!/^[\w-]{6,64}$/.test(k)) { $("#keyErr").textContent = "金鑰格式不對，請再確認一次"; return; }
+    try {
+      if (s) {
+        RELAY = { s, k };
+        await relay({ a: "ping" });
+        store.set("motolog_relay", JSON.stringify(RELAY));
+      } else {
+        KEY = k;
+        await api("/api/state");
+        store.set("motolog_key", KEY);
+        keyManifest();
+      }
+      toast("連線成功");
+      load();
+    } catch (err) { $("#keyErr").textContent = err.auth ? "金鑰不正確" : err.message; }
+  };
+}
+
+// ---------------------------------------------------------------- 資料
+async function load(quiet) {
+  try {
+    let st = await fetchState();
+    if (outbox().some(o => !o.error)) {  // 連上了：把暫存的紀錄上傳，再取一次最新資料
+      const sent = await flush();
+      if (sent) {
+        toast(RELAY ? `已將 ${sent} 筆紀錄送到雲端，電腦上網後會自動匯入` : `已將 ${sent} 筆暫存紀錄上傳到電腦`, 3500);
+        st = await fetchState();
+      }
+    }
+    S = st;
+    OFFLINE = CONNECTING = null;
+    VID = S.vehicle_id;
+    if (VID) store.set("motolog_vid", VID);
+    cacheState(S);
+    // 電腦上的網頁已更新（手機用的是快取的舊版）→ 重新載入一次（直連時）
+    if (!RELAY && S.web_version && !WEB_VERSION.startsWith("__") && S.web_version !== WEB_VERSION) {
+      let tried = true;
+      try {  // 每個版本只重新載入一次，避免瀏覽器沒換到新版時一直重整
+        tried = sessionStorage.getItem("motolog_reloaded") === S.web_version;
+        sessionStorage.setItem("motolog_reloaded", S.web_version);
+      } catch {}
+      if (!tried) { location.reload(); return; }
+    }
+  } catch (e) {
+    if (e.auth) return;
+    const c = cachedState(VID);
+    if (!c || !e.network) {  // 沒有離線資料、或不是網路問題（例如電腦還沒上傳過資料）
+      toast(e.message, 5000);
+      CONNECTING = null;
+      if (!S && ready()) $("#view").innerHTML = `<div class="empty"><b>無法連線到${PEER()}</b>${esc(e.message)}
+        <br>（手機第一次使用需要連得上，之後沒網路也能記錄）<br><br><button class="btn primary" onclick="load()">重試</button></div>`;
+      else if (S) render();
+      return;
+    }
+    S = c.st;
+    OFFLINE = c.at;
+    CONNECTING = null;
+    if (!quiet) toast(`連不到${PEER()}，改用手機上的離線資料`, 3500);
+  }
+  renderVehicles();
+  render();
+}
+
+function renderVehicles() {
+  const sel = $("#veh");
+  sel.innerHTML = S.vehicles.length
+    ? S.vehicles.map(v => `<option value="${v.id}" ${v.id === VID ? "selected" : ""}>${esc(v.name)}${v.plate ? `（${esc(v.plate)}）` : ""}</option>`).join("")
+    : `<option>尚無車輛</option>`;
+  sel.disabled = !S.vehicles.length;
+}
+$("#veh").onchange = e => { VID = +e.target.value; store.set("motolog_vid", VID); load(); };
+$("#reload").onclick = () => load().then(() => S && toast("已更新"));
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S) load(true); });
+
+function priceOn(type, date) {
+  const rows = S.prices?.[type];
+  if (!rows) return null;
+  let p = null;
+  for (const [d, v] of rows) { if (d <= date) p = v; else break; }
+  return p;
+}
+function discountFor(self, station) {
+  if (!self) return 0;
+  if (S.discount.cpc_only && station && !station.includes("中油")) return 0;
+  return S.discount.value;
+}
+
+// ---------------------------------------------------------------- 頁面與導覽
+const PAGES = [
+  { id: "overview", icon: "🏠", name: "總覽", desc: "目前狀態一覽", tab: true },
+  { id: "fuel", icon: "⛽", name: "加油紀錄", short: "加油", desc: "記錄每次加油的里程、油量與花費", tab: true },
+  { id: "maint", icon: "🔧", name: "保養紀錄", short: "保養", desc: "每次進場保養的項目、費用與店家", tab: true },
+  { id: "remind", icon: "⏰", name: "保養提醒", desc: "依最近一次更換的里程與日期，自動推算下次保養" },
+  { id: "stats", icon: "📊", name: "統計報表", short: "報表", desc: "油耗趨勢、每月花費與企業版 PRO 報表", tab: true },
+  { id: "vehicles", icon: "🏍", name: "車輛管理", desc: "管理名下所有機車" },
+  { id: "history", icon: "📈", name: "油價歷史", desc: "中油 92 / 95 / 98 歷年牌價走勢與調價紀錄" },
+  { id: "more", icon: "☰", name: "更多", desc: "其他功能", tab: true, mobileOnly: true },
+];
+const page = () => (location.hash.slice(1) || "overview").split("?")[0];
+
+function renderNav() {
+  const cur = page();
+  const curTab = PAGES.find(p => p.id === cur)?.tab ? cur : "more";
+  $("#tabs").innerHTML = PAGES.filter(p => p.tab).map(p =>
+    `<a href="#${p.id}" class="${p.id === curTab ? "on" : ""}"><span class="i">${p.icon}</span>${p.short || p.name}</a>`).join("");
+  $("#side").innerHTML = `<div class="lbl">功能選單</div>` + PAGES.filter(p => !p.mobileOnly).map(p =>
+    `<a href="#${p.id}" class="${p.id === cur ? "on" : ""}"><span>${p.icon}</span>${p.name}</a>`).join("") +
+    `<div class="foot">版本 ${esc(S?.app?.version || "")}　·　資料存在電腦上</div>`;
+}
+window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
+
+function head(p, extra = "") {
+  return `<div class="page-head row" style="justify-content:space-between"><div><h1>${p.name}</h1><p>${p.desc}</p></div>${extra}</div>`;
+}
+
+function render() {
+  renderNav();
+  if (!S) return;
+  const id = page();
+  const p = PAGES.find(x => x.id === id) || PAGES[0];
+  const fab = $("#fab");
+  fab.hidden = true;
+  const v = $("#view");
+  if (!S.vehicles.length && !["vehicles", "history", "more"].includes(p.id)) {
+    v.innerHTML = statusBanner() + head(p) + `<div class="card empty"><b>歡迎使用！</b>請先建立你的第一台機車。<br>建立後會自動帶入常見保養項目的提醒週期。
+      <br><br><button class="btn primary" onclick="vehicleForm()">＋ 新增車輛</button></div>`;
+    return;
+  }
+  ({ overview: pOverview, fuel: pFuel, maint: pMaint, remind: pRemind, stats: pStats, vehicles: pVehicles,
+     history: pHistory, more: pMore }[p.id])(v, p, fab);
+  v.insertAdjacentHTML("afterbegin", statusBanner());
+  drawCharts();
+}
+
+function stat(k, v, s = "", accent = "", cls = "", vcls = "") {
+  return `<div class="card stat ${cls}" style="${accent ? `--accent:var(--${accent})` : ""}">
+    <div class="k">${k}</div><div class="v num ${vcls}">${v}</div>${s !== null ? `<div class="s">${s || "&nbsp;"}</div>` : ""}</div>`;
+}
+
+// ---------------------------------------------------------------- 總覽
+function pOverview(v, p) {
+  const s = S.summary;
+  const over = S.reminders.filter(r => r.state === "over"), soon = S.reminders.filter(r => r.state === "soon");
+  const remind = over.length ? [`${over.length} 項到期`, "c-danger", over] : soon.length ? [`${soon.length} 項將到期`, "c-warn", soon]
+    : ["狀態良好", "c-ok", []];
+  const recent = [...S.fuel].reverse().slice(0, 5);
+  v.innerHTML = head(p) + `
+    <div class="grid g4">
+      ${stat("目前里程", `${n0(s.cur)} km`, `共 ${n0(s.dist)} km · ${s.count} 次加油`, "primary")}
+      ${stat("平均油耗", s.avg ? `${s.avg.toFixed(1)} km/L` : "—", s.last_eff ? `最近一次 ${s.last_eff.toFixed(1)}` : "需兩次加滿才能計算", "ok")}
+      ${stat("本月花費", money(s.month_fuel + s.month_maint), `油 ${money(s.month_fuel)} · 保養 ${money(s.month_maint)}`, "violet")}
+      ${stat("保養狀態", remind[0], remind[2].map(r => r.item).join("、") || "沒有到期的項目", "amber", "", remind[1])}
+    </div>
+    <div class="quick"><button class="btn primary" onclick="fuelForm()">⛽ 記一筆加油</button>
+      <button class="btn" onclick="maintForm()">🔧 記一筆保養</button></div>
+    ${pricesCard()}
+    <div class="card"><div class="card-head"><h2>需要注意的保養</h2><a class="sub" href="#remind">全部提醒 ›</a></div>
+      ${[...over, ...soon].length ? `<ul class="list">${[...over, ...soon].map(remindItem).join("")}</ul>`
+        : `<div class="empty" style="padding:18px">目前沒有到期的保養項目 ✓</div>`}</div>
+    <div class="card"><div class="card-head"><h2>最近加油</h2><a class="sub" href="#fuel">全部 ›</a></div>
+      ${recent.length ? `<ul class="list">${recent.map(fuelItem).join("")}</ul>` : `<div class="empty" style="padding:18px">尚無加油紀錄</div>`}</div>`;
+}
+
+function pricesCard() {
+  if (!S.prices || !Object.keys(S.prices).length) return "";
+  const t = TODAY();
+  let eff = "", upcoming = false;
+  const cells = ["92無鉛", "95無鉛", "98無鉛"].map(n => {
+    const rows = S.prices[n];
+    if (!rows?.length) return `<div><div class="n">${n}</div><div class="p">—</div></div>`;
+    const cur = rows[rows.length - 1], prev = rows.length > 1 ? rows[rows.length - 2][1] : cur[1];
+    eff = cur[0] > eff ? cur[0] : eff;
+    upcoming = upcoming || cur[0] > t;
+    const d = +(cur[1] - prev).toFixed(1);
+    return `<div><div class="n">${n}</div><div class="p num">${cur[1].toFixed(1)}</div>
+      <div class="d ${d > 0 ? "up" : d < 0 ? "down" : "c-muted"}">${d > 0 ? "▲" + d.toFixed(1) : d < 0 ? "▼" + (-d).toFixed(1) : "— 持平"}</div></div>`;
+  }).join("");
+  return `<div class="card" onclick="location.hash='history'" style="cursor:pointer">
+    <div class="card-head"><h2>${upcoming ? "最新油價" : "今日油價"}</h2><span class="sub">中油牌價 · ${eff.slice(5).replace("-", "/")} 起生效 ›</span></div>
+    <div class="prices">${cells}</div></div>`;
+}
+
+// ---------------------------------------------------------------- 加油
+function fuelItem(r) {
+  const eff = r.eff ? `${r.eff.toFixed(1)} km/L` : r.full ? "" : "未加滿";
+  const sub = [`${n0(r.odometer)} km`, r.station, r.pay].filter(Boolean).map(esc).join(" · ");
+  return `<li class="item" onclick="fuelForm(${r.id})">
+    <div class="main"><div class="t1">${dayLabel(r.date)}${r.fuel_type ? `<span class="badge">${esc(r.fuel_type.replace("無鉛", ""))}</span>` : ""}</div>
+      <div class="t2">${sub}</div></div>
+    <div class="side-v"><div class="amt num">${r.total != null ? money(r.total) : "—"}</div>
+      <div class="t2 num">${fmt(r.liters)} L${eff ? " · " + eff : ""}</div></div></li>`;
+}
+
+function grouped(rows, itemFn, amount) {
+  const byMonth = {};
+  for (const r of rows) (byMonth[r.date.slice(0, 7)] ||= []).push(r);
+  return Object.entries(byMonth).map(([mo, rs]) => `
+    <div class="month"><span>${mo.replace("-", " 年 ")} 月</span><span class="num">${money(rs.reduce((a, r) => a + (amount(r) || 0), 0))}</span></div>
+    <div class="card"><ul class="list">${rs.map(itemFn).join("")}</ul></div>`).join("");
+}
+
+function pFuel(v, p, fab) {
+  const rows = [...S.fuel].sort((a, b) => b.date.localeCompare(a.date) || b.odometer - a.odometer);
+  v.innerHTML = head(p) + (rows.length ? grouped(rows, fuelItem, r => r.total)
+    : `<div class="card empty"><b>尚無加油紀錄</b>按右下角「＋ 加油」新增第一筆</div>`) +
+    `<p class="sub" style="text-align:center;margin-top:16px">油耗 = 兩次加滿之間的里程 ÷ 期間總加油量</p>`;
+  fab.hidden = false; fab.textContent = "＋ 加油"; fab.onclick = () => fuelForm();
+}
+
+function fuelForm(id) {
+  const r = id ? S.fuel.find(x => x.id === id) : null;
+  const last = S.fuel.length ? [...S.fuel].sort((a, b) => a.date.localeCompare(b.date) || a.odometer - b.odometer).at(-1) : null;
+  const init = r ? { ...r } : {
+    date: TODAY(), full: 1, fuel_type: last?.fuel_type || "95無鉛", self_service: last?.self_service || 0,
+    payment: last?.payment || "", station: "", price: "",
+  };
+  const opts = (list, cur) => [...new Set([...(cur && !list.includes(cur) ? [cur] : []), ...list])]
+    .map(x => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
+  openSheet(r ? "編輯加油紀錄" : "新增加油紀錄", `
+    <div class="f2"><label class="f"><span>日期 *</span><input type="date" name="date" value="${esc(init.date)}" required></label>
+      <label class="f"><span>里程數 (km) *</span><input name="odometer" inputmode="decimal" value="${fmt(init.odometer)}"
+        placeholder="${S.summary ? "上次 " + n0(S.summary.cur) : ""}"></label></div>
+    <div class="f2"><label class="f"><span>加油量 (公升) *</span><input name="liters" inputmode="decimal" value="${fmt(init.liters)}"></label>
+      <label class="f"><span>油品</span><select name="fuel_type">${opts(S.fuel_types, init.fuel_type)}</select></label></div>
+    <div class="f2"><label class="f"><span>單價 (元/公升)<b class="hint" id="discHint"></b></span><input name="price" inputmode="decimal" value="${fmt(init.price)}"></label>
+      <label class="f"><span>金額 (元)</span><input name="total" inputmode="decimal" value="${fmt(init.total)}"></label></div>
+    <label class="check"><input type="checkbox" name="full" ${init.full ? "checked" : ""}>有加滿（用來計算油耗）</label>
+    <label class="f"><span>加油站</span><input name="station" list="stList" value="${esc(init.station)}" autocomplete="off">
+      <datalist id="stList">${(S.recent_stations || []).map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
+    <div class="f2"><label class="check" style="margin-top:22px"><input type="checkbox" name="self_service" ${init.self_service ? "checked" : ""}>自助加油</label>
+      <label class="f"><span>付款方式</span><select name="payment"><option value=""></option>${opts(S.payments, init.payment)}</select></label></div>
+    <label class="f"><span>備註</span><input name="note" value="${esc(init.note)}"></label>`,
+    async data => {
+      data.full = !!data.full; data.self_service = !!data.self_service;
+      const odo = numv(data.odometer), liters = numv(data.liters);
+      need(data.date, "請選擇日期");
+      need(odo != null && odo >= 0, "請輸入「里程數」");
+      need(liters != null && liters > 0, "「加油量」必須大於 0");
+      const total = numv(data.total) ?? (numv(data.price) != null ? Math.round(liters * numv(data.price)) : null);
+      return save("/api/fuel", { ...data, id: r?.id },
+        `⛽ ${r ? "修改" : ""}加油 ${data.date.slice(5).replace("-", "/")} · ${fmt(liters)} L${total != null ? " · " + money(total) : ""}`,
+        { odo: ["fuel", r?.id, data.date, odo] });
+    },
+    r && (() => remove("/api/fuel/delete", r.id, "確定要刪除這筆加油紀錄？",
+      `🗑 刪除加油 ${r.date.slice(5).replace("-", "/")} · ${fmt(r.liters)} L`)),
+    form => {
+      // 公升 × 單價 ⇄ 金額；日期、油品變更時帶入當日中油牌價，勾自助再扣折扣
+      const f = form.elements, num = el => { const x = parseFloat(el.value.replace(/,/g, "")); return isNaN(x) ? null : x; };
+      const fromLP = () => { const l = num(f.liters), p = num(f.price); if (l != null && p != null) f.total.value = Math.round(l * p); };
+      const fromT = () => { const t = num(f.total), p = num(f.price); if (t != null && p) f.liters.value = fmt(t / p); };
+      let lastAuto = f.price.value;  // 上次自動帶入的單價；使用者自己改過就不再覆蓋
+      const hint = () => {
+        const disc = discountFor(f.self_service.checked, f.station.value.trim());
+        $("#discHint").textContent = disc ? `自助 -${fmt(disc)}` : "";
+        return disc;
+      };
+      const auto = force => {
+        const disc = hint();
+        if (!force && ![lastAuto, ""].includes(f.price.value)) return;
+        const p = priceOn(f.fuel_type.value, f.date.value);
+        if (p != null) { lastAuto = f.price.value = fmt(p - disc); fromLP(); }
+      };
+      f.liters.oninput = fromLP; f.price.oninput = fromLP; f.total.oninput = fromT;
+      f.date.onchange = () => auto(true); f.fuel_type.onchange = () => auto(true);
+      f.self_service.onchange = () => auto(false); f.station.onchange = () => auto(false);
+      if (r) hint();  // 編輯舊紀錄：保留原本的單價
+      else {
+        auto(true);
+        if (!f.price.value && last?.price) lastAuto = f.price.value = fmt(last.price);  // 沒有油價資料就沿用上次單價
+        f.odometer.focus();
+      }
+    });
+}
+
+// ---------------------------------------------------------------- 保養
+function maintItem(r) {
+  const sub = [`${n0(r.odometer)} km`, r.shop, r.note].filter(Boolean).map(esc).join(" · ");
+  return `<li class="item" onclick="maintForm(${r.id})">
+    <div class="main"><div class="t1">${dayLabel(r.date)}</div><div class="t2" style="white-space:normal;color:var(--text)">${esc(r.items)}</div>
+      <div class="t2">${sub}</div></div>
+    <div class="side-v"><div class="amt num">${r.cost != null ? money(r.cost) : "—"}</div></div></li>`;
+}
+
+function pMaint(v, p, fab) {
+  const rows = [...S.maint].sort((a, b) => b.date.localeCompare(a.date) || b.odometer - a.odometer);
+  v.innerHTML = head(p) + (rows.length ? grouped(rows, maintItem, r => r.cost)
+    : `<div class="card empty"><b>尚無保養紀錄</b>按右下角「＋ 保養」新增第一筆</div>`);
+  fab.hidden = false; fab.textContent = "＋ 保養"; fab.onclick = () => maintForm();
+}
+
+function maintForm(id, preset) {
+  const r = id ? S.maint.find(x => x.id === id) : null;
+  const items = r ? r.items.split(/[、,，]/).map(x => x.trim()).filter(Boolean) : preset || [];
+  const options = [...S.maint_items];
+  const other = items.filter(i => !options.includes(i)).join("、");
+  openSheet(r ? "編輯保養紀錄" : "新增保養紀錄", `
+    <div class="f2"><label class="f"><span>日期 *</span><input type="date" name="date" value="${esc(r?.date || TODAY())}"></label>
+      <label class="f"><span>里程數 (km) *</span><input name="odometer" inputmode="decimal" value="${fmt(r?.odometer)}"
+        placeholder="${S.summary ? "目前 " + n0(S.summary.cur) : ""}"></label></div>
+    <div class="f"><span>保養項目 *（可複選）</span><div class="chips">${options.map(o =>
+      `<label><input type="checkbox" name="items" value="${esc(o)}" ${items.includes(o) ? "checked" : ""}><span>${esc(o)}</span></label>`).join("")}</div></div>
+    <label class="f"><span>其他項目（多個用「、」分隔）</span><input name="other" value="${esc(other)}"></label>
+    <label class="f"><span>總金額 (元)</span><input name="cost" inputmode="decimal" value="${fmt(r?.cost)}"></label>
+    <label class="f"><span>店家</span><input name="shop" list="shopList" value="${esc(r?.shop)}" autocomplete="off">
+      <datalist id="shopList">${(S.recent_shops || []).map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
+    <label class="f"><span>備註</span><input name="note" value="${esc(r?.note)}"></label>`,
+    data => {
+      const odo = numv(data.odometer);
+      const all = [...(data.items || []), ...String(data.other || "").split(/[、,，]/).map(x => x.trim()).filter(Boolean)];
+      need(data.date, "請選擇日期");
+      need(odo != null && odo >= 0, "請輸入「里程數」");
+      need(all.length, "請至少選擇或輸入一個保養項目");
+      return save("/api/maint", { ...data, id: r?.id },
+        `🔧 ${r ? "修改" : ""}保養 ${data.date.slice(5).replace("-", "/")} · ${[...new Set(all)].join("、")}`,
+        { odo: ["maint", r?.id, data.date, odo] });
+    },
+    r && (() => remove("/api/maint/delete", r.id, "確定要刪除這筆保養紀錄？",
+      `🗑 刪除保養 ${r.date.slice(5).replace("-", "/")} · ${r.items}`)),
+    form => { if (!r) form.elements.odometer.focus(); });
+}
+
+// ---------------------------------------------------------------- 提醒
+function remindItem(r) {
+  const nxt = [r.next_km ? `${n0(r.next_km)} km` : "", r.next_date || ""].filter(Boolean).join(" / ");
+  return `<li class="item" onclick="remindAct(${r.id})">
+    <div class="main"><div class="t1">${esc(r.item)}<span class="badge ${r.state}">${STATE_TEXT[r.state]}</span></div>
+      <div class="t2">${r.remain ? esc(r.remain) : r.last_date ? "" : "尚無更換紀錄"}${nxt ? ` · 下次 ${nxt}` : ""}</div>
+      <div class="t2">每 ${r.interval_km ? n0(r.interval_km) + " km" : ""}${r.interval_km && r.interval_months ? " 或 " : ""}${r.interval_months ? r.interval_months + " 個月" : ""}${r.last_date ? ` · 上次 ${r.last_date}` : ""}</div></div>
+    <div class="side-v"><button class="btn sm" onclick="event.stopPropagation();maintForm(null,[${esc(JSON.stringify(r.item))}])">✔ 完成</button></div></li>`;
+}
+
+function pRemind(v, p, fab) {
+  v.innerHTML = head(p) + (S.reminders.length ? `<div class="card"><ul class="list">${S.reminders.map(remindItem).join("")}</ul></div>`
+    : `<div class="card empty"><b>尚無提醒項目</b></div>`) +
+    `<p class="sub" style="text-align:center;margin-top:16px">按「✔ 完成」可快速新增保養紀錄；點項目可修改週期</p>`;
+  fab.hidden = false; fab.textContent = "＋ 提醒項目"; fab.onclick = () => remindForm();
+}
+function remindAct(id) { remindForm(id); }
+
+function remindForm(id) {
+  const r = id ? S.reminders.find(x => x.id === id) : null;
+  openSheet(r ? "編輯提醒項目" : "新增提醒項目", `
+    <label class="f"><span>項目名稱 *</span><input name="item" value="${esc(r?.item)}"></label>
+    <div class="f2"><label class="f"><span>每隔幾公里</span><input name="interval_km" inputmode="numeric" value="${fmt(r?.interval_km ?? 0)}"></label>
+      <label class="f"><span>每隔幾個月</span><input name="interval_months" inputmode="numeric" value="${r?.interval_months ?? 0}"></label></div>
+    <p class="sub">填 0 代表不以該條件提醒；兩者先到者為準</p>`,
+    data => {
+      const item = data.item.trim();
+      need(item, "請輸入項目名稱");
+      need(!/[、,]/.test(item), "項目名稱不可包含「、」或逗號");
+      need(numv(data.interval_km) || numv(data.interval_months), "公里或月份至少要設定一個");
+      return save("/api/reminder", { ...data, id: r?.id }, `⏰ ${r ? "修改" : "新增"}提醒項目「${item}」`);
+    },
+    r && (() => remove("/api/reminder/delete", r.id, "確定要刪除這個提醒項目？（不會刪除保養紀錄）",
+      `🗑 刪除提醒項目「${r.item}」`)));
+}
+
+// ---------------------------------------------------------------- 統計報表
+let statsMode = store.get("motolog_stats") || "basic";
+function setStats(m) { statsMode = m; store.set("motolog_stats", m); render(); }
+
+function pStats(v, p) {
+  const seg = `<div class="seg"><button class="${statsMode === "basic" ? "on" : ""}" onclick="setStats('basic')">基本報表</button>
+    <button class="${statsMode === "pro" ? "on" : ""}" onclick="setStats('pro')">★ 企業版 PRO</button></div>`;
+  v.innerHTML = head(p, seg) + (statsMode === "pro" ? proHtml() : basicHtml());
+}
+
+function basicHtml() {
+  const s = S.summary, effs = S.fuel.filter(r => r.eff).map(r => r.eff);
+  const perKm = s.dist ? (s.fuel_cost / s.dist) : null, perAll = s.dist ? (s.fuel_cost + s.maint_cost) / s.dist : null;
+  return `<div class="grid g6">
+    ${stat("平均油耗", s.avg ? s.avg.toFixed(1) + " km/L" : "—", null, "", "sm")}
+    ${stat("最佳油耗", s.best ? s.best.toFixed(1) + " km/L" : "—", null, "", "sm")}
+    ${stat("最差油耗", s.worst ? s.worst.toFixed(1) + " km/L" : "—", null, "", "sm")}
+    ${stat("紀錄里程", n0(s.dist) + " km", null, "", "sm")}
+    ${stat("總加油量", s.liters.toFixed(1) + " L", null, "", "sm")}
+    ${stat("油費總計", money(s.fuel_cost), null, "", "sm")}
+    ${stat("保養總計", money(s.maint_cost), null, "", "sm")}
+    ${stat("每公里油費", perKm != null ? "$" + perKm.toFixed(2) : "—", null, "", "sm")}
+    ${stat("每公里總成本", perAll != null ? "$" + perAll.toFixed(2) : "—", null, "", "sm")}
+    ${stat("加油次數", s.count + " 次", null, "", "sm")}
+    ${stat("自助加油比例", s.count ? Math.round(s.self_count / s.count * 100) + "%" : "—", null, "", "sm")}
+    ${stat("自助折扣共省下", money(s.self_saved), null, "", "sm")}
+  </div>
+  <div class="card"><div class="card-head"><h2>油耗趨勢</h2><span class="sub">每次加滿計算 (km/L)，最近 30 筆</span></div>
+    <div class="chart" data-chart="eff"></div></div>
+  <div class="card"><div class="card-head"><h2>每月花費</h2>
+    <span class="legend"><span><i style="background:var(--primary)"></i>油費</span><span><i style="background:var(--amber)"></i>保養</span></span></div>
+    <div class="chart" data-chart="monthly"></div></div>`;
+}
+
+function proHtml() {
+  const p = S.pro;
+  if (!p) return `<div class="card empty">尚無資料</div>`;
+  const pct = p.ly ? (p.ytd - p.ly) / p.ly * 100 : null;
+  const tot = p.fuel_cost + p.maint_cost;
+  const rows = [...p.months].reverse();
+  const sum = rows.reduce((a, r) => ({ dist: a.dist + r.dist, liters: a.liters + r.liters, fuel: a.fuel + r.fuel, maint: a.maint + r.maint,
+    sd: a.sd + r.seg[0], sl: a.sl + r.seg[1] }), { dist: 0, liters: 0, fuel: 0, maint: 0, sd: 0, sl: 0 });
+  const top = p.stations[0]?.total || 1;
+  return `<div class="grid g5">
+    ${stat("近 30 天支出", money(p.d30[0] + p.d30[1]), `油 ${money(p.d30[0])} · 保養 ${money(p.d30[1])}`, "primary")}
+    ${stat("今年預估總支出", p.ytd ? money(p.proj) : "—", `今年至今 ${money(p.ytd)}`, "violet")}
+    ${stat("今年 vs 去年同期", pct == null ? "—" : `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`, p.ly ? `去年同期 ${money(p.ly)}` : "去年同期尚無資料",
+      "amber", "", pct > 0 ? "c-danger" : pct < 0 ? "c-ok" : "")}
+    ${stat("每百公里成本", p.dist ? "$" + (tot / p.dist * 100).toFixed(1) : "—",
+      p.dist ? `油 $${(p.fuel_cost / p.dist * 100).toFixed(1)} · 保養 $${(p.maint_cost / p.dist * 100).toFixed(1)}` : "需要至少兩筆里程紀錄", "ok")}
+    ${stat("相較中油牌價省下", p.saved_n ? money(p.saved) : "—", p.saved_n ? `實付 vs 當日牌價（${p.saved_n} 次）` : "需要油價資料",
+      "ok", "", p.saved_n ? (p.saved >= 0 ? "c-ok" : "c-danger") : "")}
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))">
+    <div class="card"><div class="card-head"><h2>成本結構</h2><span class="sub">累計油費與保養費占比</span></div>
+      <div class="chart" data-chart="donut"></div></div>
+    <div class="card"><div class="card-head"><h2>加油站排行</h2><span class="sub">依累計油費前 5 名</span></div>
+      ${p.stations.length ? p.stations.slice(0, 5).map((s, i) => `<div class="bar-row">
+        <div class="l"><span>${i + 1}. ${esc(s.name)}</span><span class="num">${money(s.total)} · ${s.n} 次 · ${s.liters ? (s.total / s.liters).toFixed(1) : "—"} 元/L</span></div>
+        <div class="bar"><i style="width:${(s.total / top * 100).toFixed(1)}%;background:var(--${i ? "violet" : "primary"})"></i></div></div>`).join("")
+        : `<div class="empty">尚無加油紀錄</div>`}<div style="height:10px"></div></div>
+  </div>
+  <div class="card"><div class="card-head"><h2>年度同期比較</h2>
+    <span class="legend"><span><i style="background:var(--muted)"></i>${p.year - 1}</span><span><i style="background:var(--primary)"></i>${p.year}</span></span></div>
+    <div class="chart" data-chart="yoy"></div></div>
+  <div class="card"><div class="card-head"><h2>月結明細</h2><span class="sub">最近 12 個月</span></div>
+    <div class="tbl-wrap"><table class="num"><tr><th>月份</th><th>里程</th><th>公升</th><th>油費</th><th>保養</th><th>合計</th><th>km/L</th><th>元/km</th></tr>
+    ${rows.map(r => { const s = r.fuel + r.maint; return `<tr class="${s || r.dist ? "" : "dim"}"><td>${r.month}</td>
+      <td>${r.dist ? n0(r.dist) : "—"}</td><td>${r.liters ? fmt(r.liters, 1) : "—"}</td><td>${money(r.fuel)}</td><td>${money(r.maint)}</td>
+      <td>${money(s)}</td><td>${r.eff ? r.eff.toFixed(1) : "—"}</td><td>${r.dist ? (s / r.dist).toFixed(2) : "—"}</td></tr>`; }).join("")}
+    <tr class="sum"><td>合計</td><td>${n0(sum.dist)}</td><td>${fmt(sum.liters, 1) || 0}</td><td>${money(sum.fuel)}</td><td>${money(sum.maint)}</td>
+      <td>${money(sum.fuel + sum.maint)}</td><td>${sum.sl ? (sum.sd / sum.sl).toFixed(1) : "—"}</td>
+      <td>${sum.dist ? ((sum.fuel + sum.maint) / sum.dist).toFixed(2) : "—"}</td></tr></table></div></div>`;
+}
+
+// ---------------------------------------------------------------- 車輛
+function pVehicles(v, p, fab) {
+  v.innerHTML = head(p) + (S.vehicles.length ? `<div class="card"><ul class="list">${S.vehicles.map(x => `
+    <li class="item" onclick="vehicleForm(${x.id})"><div class="main"><div class="t1">${esc(x.name)}${x.id === VID ? `<span class="badge ok">目前車輛</span>` : ""}</div>
+      <div class="t2">${[x.plate, x.model, x.buy_date && "購車 " + x.buy_date, x.note].filter(Boolean).map(esc).join(" · ") || "—"}</div></div>
+      ${x.id !== VID ? `<div class="side-v"><button class="btn sm" onclick="event.stopPropagation();pickVehicle(${x.id})">切換</button></div>` : ""}</li>`).join("")}</ul></div>`
+    : `<div class="card empty"><b>尚無車輛</b></div>`);
+  fab.hidden = false; fab.textContent = "＋ 車輛"; fab.onclick = () => vehicleForm();
+}
+function pickVehicle(id) { VID = id; store.set("motolog_vid", id); load().then(() => toast("已切換車輛")); }
+
+function vehicleForm(id) {
+  const r = id ? S.vehicles.find(x => x.id === id) : null;
+  openSheet(r ? "編輯車輛" : "新增車輛", `
+    <label class="f"><span>名稱 *</span><input name="name" value="${esc(r?.name)}"></label>
+    <div class="f2"><label class="f"><span>車牌</span><input name="plate" value="${esc(r?.plate)}"></label>
+      <label class="f"><span>車型</span><input name="model" value="${esc(r?.model)}"></label></div>
+    <label class="f"><span>購車日期</span><input type="date" name="buy_date" value="${esc(r?.buy_date)}"></label>
+    <label class="f"><span>備註</span><input name="note" value="${esc(r?.note)}"></label>
+    ${r ? "" : `<p class="sub">新增後會自動建立常見保養項目的提醒</p>`}`,
+    async data => {
+      need(data.name.trim(), "請輸入車輛名稱");
+      if (RELAY)  // 雲端同步：跟其他紀錄一樣排隊，電腦匯入後新車才會出現
+        return save("/api/vehicle", { ...data, id: r?.id }, `🏍 ${r ? "修改" : "新增"}車輛「${data.name.trim()}」`);
+      const res = await direct("/api/vehicle", { ...data, id: r?.id });
+      if (!r) { VID = res.vehicle_id; store.set("motolog_vid", VID); }
+      toast("已儲存，電腦上也會同步更新");
+      await load(true);
+      return true;
+    },
+    r && (async () => {
+      const msg = `確定要刪除「${r.name}」？\n\n這台車的所有加油、保養紀錄與提醒都會一併刪除，且無法復原。`;
+      if (RELAY) return remove("/api/vehicle/delete", r.id, msg, `🗑 刪除車輛「${r.name}」`);
+      if (!confirm(msg)) return;
+      try { await direct("/api/vehicle/delete", { id: r.id }); closeSheet(); toast("已刪除"); await load(true); }
+      catch (e) { $("#sheetErr").textContent = e.message; }
+    }));
+}
+
+// ---------------------------------------------------------------- 油價歷史
+const RANGES = [["3m", "3 個月", 92], ["1y", "1 年", 366], ["3y", "3 年", 1098], ["5y", "5 年", 1830], ["all", "全部", null]];
+let histRange = store.get("motolog_hist") || "1y";
+function setHist(k) { histRange = k; store.set("motolog_hist", k); render(); }
+function histStart() {
+  const days = RANGES.find(r => r[0] === histRange)[2];
+  if (days == null) return Object.values(S.prices).reduce((a, rows) => rows[0][0] < a ? rows[0][0] : a, "9999");
+  const d = new Date(); d.setDate(d.getDate() - days); return iso(d);
+}
+
+function pHistory(v, p) {
+  const seg = `<div class="seg">${RANGES.map(([k, l]) => `<button class="${k === histRange ? "on" : ""}" onclick="setHist('${k}')">${l}</button>`).join("")}</div>`;
+  if (!S.prices || !Object.keys(S.prices).length) {
+    v.innerHTML = head(p) + `<div class="card empty"><b>尚未取得油價資料</b>請在電腦上的 MotoLog 按 F5 更新油價</div>`;
+    return;
+  }
+  const start = histStart(), t = TODAY(), names = ["92無鉛", "95無鉛", "98無鉛"];
+  const dates = [...new Set(names.flatMap(n => (S.prices[n] || []).filter(([d]) => d >= start).map(([d]) => d)))].sort();
+  const before = (() => { const d = new Date(start + "T00:00:00"); d.setDate(d.getDate() - 1); return iso(d); })();
+  let prev = names.map(n => priceOn(n, before));
+  const rows = [];
+  dates.forEach((d, i) => {
+    const pr = names.map(n => priceOn(n, d));
+    const chg = pr[1] != null && prev[1] != null ? +(pr[1] - prev[1]).toFixed(1) : null;
+    if (pr.join() !== prev.join() || i === dates.length - 1) rows.push([d, pr, chg]);
+    prev = pr;
+  });
+  const r95 = (S.prices["95無鉛"] || []).filter(([d]) => d >= start && d <= t);
+  const now = priceOn("95無鉛", t), first = priceOn("95無鉛", start) ?? r95[0]?.[1] ?? now;
+  const diff = +((now || 0) - (first || 0)).toFixed(1);
+  const pts = r95.length ? r95.map(x => x[1]) : [now];
+  v.innerHTML = head(p) + `<div style="margin:-4px 0 12px">${seg}</div>
+    <div class="grid g5">
+      ${stat("目前 95 牌價", now ? now.toFixed(1) + " 元" : "—", null, "", "sm")}
+      ${stat("區間漲跌（95）", `${diff > 0 ? "+" : ""}${diff.toFixed(1)} 元`, null, "", "sm", diff > 0 ? "c-danger" : diff < 0 ? "c-ok" : "")}
+      ${stat("區間最高（95）", Math.max(...pts).toFixed(1) + " 元", null, "", "sm")}
+      ${stat("區間最低（95）", Math.min(...pts).toFixed(1) + " 元", null, "", "sm")}
+      ${stat("調價次數", rows.filter(r => r[2]).length + " 次", null, "", "sm")}
+    </div>
+    <div class="card"><div class="card-head"><h2>牌價走勢</h2><span class="legend">
+      <span><i style="background:var(--ok)"></i>92</span><span><i style="background:var(--primary)"></i>95</span><span><i style="background:var(--violet)"></i>98</span></span></div>
+      <div class="chart" data-chart="price" data-start="${start}"></div></div>
+    <div class="card"><div class="card-head"><h2>調價紀錄</h2><span class="sub">漲紅跌綠 · 資料來源：台灣中油</span></div>
+      <div class="tbl-wrap"><table class="num"><tr><th>生效日</th><th>92</th><th>95</th><th>98</th><th>漲跌</th></tr>
+      ${rows.reverse().map(([d, pr, c]) => `<tr><td>${d}${d > t ? " (預告)" : ""}</td>${pr.map(x => `<td>${x ? x.toFixed(1) : ""}</td>`).join("")}
+        <td class="${c > 0 ? "up" : c < 0 ? "down" : ""}">${c == null ? "—" : c === 0 ? "持平" : (c > 0 ? "▲" : "▼") + Math.abs(c).toFixed(1)}</td></tr>`).join("")}
+      </table></div></div>`;
+}
+
+// ---------------------------------------------------------------- 更多（手機）
+function pMore(v, p) {
+  const links = PAGES.filter(x => !x.tab);
+  v.innerHTML = head(p) + `<div class="card more">${links.map(x =>
+    `<a href="#${x.id}"><span class="i">${x.icon}</span><span><b>${x.name}</b><br><span class="d">${x.desc}</span></span></a>`).join("")}</div>
+    <p class="sub" style="text-align:center;margin-top:18px">${esc(S.app.title)} v${esc(S.app.version)}<br>
+    資料存在電腦上的 moto_records.db，手機只是遠端操作<br>在瀏覽器選單點「加入主畫面」，用起來就像 App</p>`;
+}
+
+// ---------------------------------------------------------------- 表單（底部 sheet）
+let sheetSubmit = null;
+function openSheet(title, body, onSubmit, onDelete, onOpen) {
+  $("#sheetTitle").textContent = title;
+  $("#sheetBody").innerHTML = body + `<p class="err" id="sheetErr"></p>`;
+  $("#sheetFoot").innerHTML = (onDelete ? `<button type="button" class="btn danger" id="sheetDel">刪除</button>` : "") +
+    `<button type="button" class="btn" id="sheetCancel">取消</button><button class="btn primary" id="sheetOk">儲存</button>`;
+  sheetSubmit = onSubmit;
+  if (onDelete) $("#sheetDel").onclick = onDelete;
+  $("#sheetCancel").onclick = closeSheet;
+  $("#sheet").hidden = false;
+  document.body.style.overflow = "hidden";
+  onOpen?.($("#sheetForm"));
+}
+function closeSheet() { $("#sheet").hidden = true; document.body.style.overflow = ""; }
+$("#sheetClose").onclick = closeSheet;
+$("#sheet").onclick = e => { if (e.target.id === "sheet") closeSheet(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
+$("#sheetForm").onsubmit = async e => {
+  e.preventDefault();
+  const form = e.target, data = {};
+  for (const el of form.elements) {
+    if (!el.name) continue;
+    if (el.type === "checkbox" && el.name === "items") { (data.items ||= []); if (el.checked) data.items.push(el.value); }
+    else if (el.type === "checkbox") data[el.name] = el.checked ? 1 : 0;
+    else data[el.name] = el.value;
+  }
+  const ok = $("#sheetOk");
+  ok.disabled = true;
+  try { const res = await sheetSubmit(data); if (res) closeSheet(); }
+  catch (err) { $("#sheetErr").textContent = err.message; }
+  finally { ok.disabled = false; }
+};
+
+// 手機端先檢查一次（離線時電腦無法檢查，暫存前就要擋下明顯的錯誤）
+function need(ok, msg) { if (!ok) throw new Error(msg); }
+const numv = v => { const x = parseFloat(String(v ?? "").replace(/,/g, "")); return isNaN(x) ? null : x; };
+function odometerConflict(table, id, date, odo) {
+  const rows = [...S.fuel.map(r => ({ ...r, t: "fuel" })), ...S.maint.map(r => ({ ...r, t: "maint" }))]
+    .filter(r => !(r.t === table && r.id === id));
+  const b = rows.find(r => (r.date < date && r.odometer > odo) || (r.date > date && r.odometer < odo));
+  return b ? `這筆里程 ${n0(odo)} km 與 ${b.date} 的紀錄（${n0(b.odometer)} km）先後順序不一致。\n\n仍要儲存嗎？` : null;
+}
+
+// 新增／修改／刪除一律先放進暫存佇列再上傳：連得到電腦就立刻完成，連不到就等電腦開機後自動補傳
+async function save(path, data, label, { odo, done = "已儲存，電腦上也會同步更新" } = {}) {
+  if (odo) { const msg = odometerConflict(...odo); if (msg && !confirm(msg)) return null; }
+  const id = enqueue(path, data, label);
+  if (!OFFLINE) {
+    if (flushing) await flushing;
+    await flush();
+  }
+  const op = outbox().find(o => o.id === id);
+  if (!op) { toast(RELAY ? "已送到雲端，電腦上網後會自動匯入" : done, RELAY ? 3500 : 2600); await load(true); return true; }
+  if (op.error) { saveOutbox(outbox().filter(o => o.id !== id)); throw new Error(op.error); }
+  if (!OFFLINE) OFFLINE = cachedState(VID)?.at || new Date().toISOString();
+  toast(RELAY ? "目前沒有網路，已先存在手機，有網路時自動送出" : "電腦目前連不上，已先存在手機，連線後會自動上傳", 4500);
+  render();
+  return true;
+}
+async function remove(path, id, msg, label) {
+  if (!confirm(msg)) return;
+  try { if (await save(path, { id }, label, { done: "已刪除" })) closeSheet(); }
+  catch (e) { $("#sheetErr").textContent = e.message; }
+}
+async function direct(path, body) {  // 車輛資料要拿到電腦給的編號，只能連線時操作
+  try { return await api(path, body); }
+  catch (e) { throw e.network ? new Error("新增、修改或刪除車輛需要連線到電腦，請等電腦開啟 MotoLog 後再操作") : e; }
+}
+
+// ---------------------------------------------------------------- 圖表（SVG，依容器寬度繪製）
+const css = n => getComputedStyle(document.documentElement).getPropertyValue("--" + n).trim();
+function niceStep(span, n = 4) {
+  const raw = span > 0 ? span / n : 1, mag = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 2.5, 5, 10].map(s => s * mag).find(s => raw <= s) || 10 * mag;
+}
+function yAxis(lo, hi, step, L, R, sy, dec = 0) {
+  let out = "";
+  for (let v = lo; v <= hi + 1e-9; v += step)
+    out += `<line x1="${L}" x2="${R}" y1="${sy(v)}" y2="${sy(v)}" stroke="${css("grid")}"/>` +
+      `<text x="${L - 6}" y="${sy(v) + 4}" text-anchor="end">${(+v.toFixed(dec)).toLocaleString("zh-TW")}</text>`;
+  return out;
+}
+const svg = (w, h, body) => `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${body}</svg>`;
+
+function drawCharts() {
+  document.querySelectorAll("[data-chart]").forEach(el => {
+    const w = Math.max(el.clientWidth - 16, 240);
+    el.innerHTML = { eff: chartEff, monthly: chartMonthly, donut: chartDonut, yoy: chartYoy, price: chartPrice }[el.dataset.chart](w, el);
+  });
+}
+let resizeT;
+window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(drawCharts, 150); });
+
+function chartEff(w) {
+  const pts = S.fuel.filter(r => r.eff).slice(-30), h = 210, L = 40, R = w - 12, T = 14, B = h - 26;
+  if (!pts.length) return `<div class="empty">需要至少兩次「加滿」的加油紀錄才能計算油耗</div>`;
+  const vals = pts.map(p => p.eff), step = niceStep(Math.max(Math.max(...vals) - Math.min(...vals), 1));
+  const lo = Math.floor(Math.min(...vals) / step) * step, hi = (Math.floor(Math.max(...vals) / step) + 1) * step;
+  const sy = v => B - (v - lo) / (hi - lo) * (B - T), n = pts.length, sx = i => L + (R - L) * (n > 1 ? i / (n - 1) : .5);
+  const line = pts.map((p, i) => `${sx(i)},${sy(p.eff)}`).join(" ");
+  const avg = S.summary.avg, every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((R - L) / 56))));
+  return svg(w, h, yAxis(lo, hi, step, L, R, sy) +
+    (n > 1 ? `<polygon points="${L},${B} ${line} ${R},${B}" fill="${css("area")}"/><polyline points="${line}" fill="none" stroke="${css("primary")}" stroke-width="2.5" stroke-linejoin="round"/>` : "") +
+    (avg ? `<line x1="${L}" x2="${R}" y1="${sy(avg)}" y2="${sy(avg)}" stroke="${css("amber")}" stroke-dasharray="5 4" stroke-width="1.5"/>
+      <text x="${R}" y="${sy(avg) - 6}" text-anchor="end" style="fill:${css("avg-fg")}">平均 ${avg.toFixed(1)}</text>` : "") +
+    pts.map((p, i) => `<circle cx="${sx(i)}" cy="${sy(p.eff)}" r="3.5" fill="${css("card")}" stroke="${css("primary")}" stroke-width="2"><title>${p.date}　${p.eff.toFixed(1)} km/L</title></circle>` +
+      (i % every === 0 && n - 1 - i >= every / 2 || i === n - 1
+        ? `<text x="${sx(i)}" y="${B + 17}" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${p.date.slice(5)}</text>` : "")).join("") +
+    `<line x1="${L}" x2="${R}" y1="${B}" y2="${B}" stroke="${css("input")}"/>`);
+}
+
+function bars(w, labels, series, stacked, labelFn) {
+  const h = 210, L = 44, R = w - 8, T = 18, B = h - 26;
+  const totals = labels.map((_, i) => stacked ? series.reduce((a, s) => a + s.vals[i], 0) : Math.max(...series.map(s => s.vals[i])));
+  const top = Math.max(...totals) || 100, step = niceStep(top, 3), hi = (Math.floor(top / step) + 1) * step;
+  const sy = v => B - v / hi * (B - T), slot = (R - L) / labels.length;
+  let out = yAxis(0, hi, step, L, R, sy);
+  labels.forEach((lab, i) => {
+    const cx = L + slot * (i + .5);
+    if (stacked) {
+      const bw = Math.min(slot * .6, 34); let acc = 0;
+      series.forEach(s => { const v = s.vals[i]; if (v) out += `<rect x="${cx - bw / 2}" y="${sy(acc + v)}" width="${bw}" height="${sy(acc) - sy(acc + v)}" fill="${css(s.color)}" rx="2"><title>${lab} ${s.name} ${money(v)}</title></rect>`; acc += v; });
+      if (totals[i] && slot > 40) out += `<text x="${cx}" y="${sy(totals[i]) - 5}" text-anchor="middle">${n0(totals[i])}</text>`;
+    } else {
+      const bw = Math.min(slot * .36, 16);
+      series.forEach((s, k) => { const v = s.vals[i]; if (v) out += `<rect x="${cx - bw + k * bw}" y="${sy(v)}" width="${bw}" height="${B - sy(v)}" fill="${css(s.color)}" rx="2"><title>${s.name} ${lab} ${money(v)}</title></rect>`; });
+    }
+    out += `<text x="${cx}" y="${B + 17}" text-anchor="middle">${labelFn(lab, slot, i)}</text>`;
+  });
+  return svg(w, h, out + `<line x1="${L}" x2="${R}" y1="${B}" y2="${B}" stroke="${css("input")}"/>`);
+}
+function chartMonthly(w) {
+  const ms = S.monthly;
+  return bars(w, ms.map(m => m.month), [{ name: "油費", color: "primary", vals: ms.map(m => m.fuel) },
+    { name: "保養", color: "amber", vals: ms.map(m => m.maint) }], true,
+    (m, slot) => slot > 36 ? `${m.slice(2, 4)}/${m.slice(5)}` : +m.slice(5));
+}
+function chartYoy(w) {
+  const p = S.pro, thisM = new Date().getMonth();
+  return bars(w, [...Array(12).keys()].map(i => i + 1 + "月"), [{ name: p.year - 1, color: "muted", vals: p.yoy[p.year - 1] },
+    { name: p.year, color: "primary", vals: p.yoy[p.year] }], false,
+    (lab, slot, i) => `<tspan style="${i === thisM ? `fill:${css("text")};font-weight:700` : ""}">${slot > 34 ? lab : i + 1}</tspan>`);
+}
+function chartDonut(w) {
+  const p = S.pro, f = p.fuel_cost, m = p.maint_cost, tot = f + m;
+  if (!tot) return `<div class="empty">尚無花費紀錄</div>`;
+  const r = 62, cx = 78, cy = 78, h = 156;
+  const arc = (a0, a1, color) => {
+    if (a1 - a0 >= 0.9999) return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"/>`;
+    const p0 = [cx + r * Math.sin(a0 * 2 * Math.PI), cy - r * Math.cos(a0 * 2 * Math.PI)];
+    const p1 = [cx + r * Math.sin(a1 * 2 * Math.PI), cy - r * Math.cos(a1 * 2 * Math.PI)];
+    return `<path d="M${cx},${cy} L${p0} A${r},${r} 0 ${a1 - a0 > .5 ? 1 : 0} 1 ${p1} Z" fill="${color}" stroke="${css("card")}" stroke-width="2"/>`;
+  };
+  const lx = Math.min(cx + r + 26, w - 150);
+  return svg(w, h, (f ? arc(0, f / tot, css("primary")) : "") + (m ? arc(f / tot, 1, css("amber")) : "") +
+    `<circle cx="${cx}" cy="${cy}" r="${r * .62}" fill="${css("card")}"/>
+    <text x="${lx}" y="${cy - 30}">總支出</text>
+    <text x="${lx}" y="${cy - 8}" style="font-size:18px;font-weight:700;fill:${css("text")}">${money(tot)}</text>
+    <rect x="${lx}" y="${cy + 12}" width="10" height="10" rx="2" fill="${css("primary")}"/>
+    <text x="${lx + 16}" y="${cy + 21}" style="fill:${css("sub")}">油費 ${Math.round(f / tot * 100)}%　${money(f)}</text>
+    <rect x="${lx}" y="${cy + 34}" width="10" height="10" rx="2" fill="${css("amber")}"/>
+    <text x="${lx + 16}" y="${cy + 43}" style="fill:${css("sub")}">保養 ${Math.round(m / tot * 100)}%　${money(m)}</text>`);
+}
+
+function chartPrice(w, el) {
+  const start = el.dataset.start, t = TODAY(), h = 240, L = 40, R = w - 12, T = 14, B = h - 26;
+  const names = [["92無鉛", "ok"], ["95無鉛", "primary"], ["98無鉛", "violet"]];
+  const series = names.map(([n, c]) => {
+    const rows = (S.prices[n] || []).filter(([d]) => d >= start && d <= t);
+    const first = priceOn(n, start);
+    const pts = (first != null ? [[start, first]] : []).concat(rows.filter(([d]) => d > start));
+    if (pts.length) pts.push([t, pts[pts.length - 1][1]]);
+    return { n, c, pts };
+  }).filter(s => s.pts.length);
+  if (!series.length) return `<div class="empty">此區間沒有資料</div>`;
+  const all = series.flatMap(s => s.pts.map(p => p[1]));
+  const step = niceStep(Math.max(Math.max(...all) - Math.min(...all), 1));
+  const lo = Math.floor(Math.min(...all) / step) * step, hi = (Math.floor(Math.max(...all) / step) + 1) * step;
+  const t0 = new Date(start).getTime(), t1 = new Date(t).getTime();
+  const sx = d => L + (new Date(d).getTime() - t0) / Math.max(t1 - t0, 1) * (R - L), sy = v => B - (v - lo) / (hi - lo) * (B - T);
+  let out = yAxis(lo, hi, step, L, R, sy, 1);
+  for (const s of series) {   // 階梯線：牌價在下次調價前維持不變
+    let d = `M${sx(s.pts[0][0])},${sy(s.pts[0][1])}`;
+    for (let i = 1; i < s.pts.length; i++) d += ` H${sx(s.pts[i][0])} V${sy(s.pts[i][1])}`;
+    out += `<path d="${d}" fill="none" stroke="${css(s.c)}" stroke-width="2"/>`;
+  }
+  const ticks = Math.max(2, Math.floor((R - L) / 80));
+  for (let i = 0; i <= ticks; i++) {
+    const d = new Date(t0 + (t1 - t0) * i / ticks);
+    out += `<text x="${L + (R - L) * i / ticks}" y="${B + 17}" text-anchor="${i === 0 ? "start" : i === ticks ? "end" : "middle"}">${histRange === "3m" ? `${d.getMonth() + 1}/${d.getDate()}` : `${String(d.getFullYear()).slice(2)}/${d.getMonth() + 1}`}</text>`;
+  }
+  out += `<line x1="${L}" x2="${R}" y1="${B}" y2="${B}" stroke="${css("input")}"/><g class="hover"></g>`;
+  // 觸控／滑鼠：顯示該日三種油價
+  setTimeout(() => {
+    const s = el.querySelector("svg"), g = el.querySelector(".hover");
+    if (!s) return;
+    const show = ev => {
+      const box = s.getBoundingClientRect(), x = Math.min(Math.max((ev.clientX - box.left) * w / box.width, L), R);
+      const d = iso(new Date(t0 + (x - L) / (R - L) * (t1 - t0)));
+      const lines = names.map(([n]) => [n, priceOn(n, d)]).filter(([, p]) => p != null);
+      const bx = x > (L + R) / 2 ? x - 112 : x + 8;
+      g.innerHTML = `<line x1="${x}" x2="${x}" y1="${T}" y2="${B}" stroke="${css("muted")}" stroke-dasharray="3 3"/>
+        <rect x="${bx}" y="${T}" width="104" height="${22 + lines.length * 17}" rx="6" fill="${css("card")}" stroke="${css("border")}"/>
+        <text x="${bx + 8}" y="${T + 16}" style="fill:${css("text")};font-weight:700">${d}</text>` +
+        lines.map(([n, p], i) => `<text x="${bx + 8}" y="${T + 34 + i * 17}" style="fill:${css(names.find(x => x[0] === n)[1])}">${n.slice(0, 2)}　${p.toFixed(1)} 元</text>`).join("");
+    };
+    s.addEventListener("pointermove", show);
+    s.addEventListener("pointerdown", show);
+    s.addEventListener("pointerleave", () => g.innerHTML = "");
+  });
+  return svg(w, h, out);
+}
+
+// ---------------------------------------------------------------- 啟動
+renderNav();
+if (!location.hash || location.hash.startsWith("#k=")) history.replaceState(null, "", location.pathname + location.search + "#overview");
+if (ready()) {
+  const c = cachedState(VID);
+  if (c) { S = c.st; CONNECTING = true; renderVehicles(); render(); }  // 先秀手機上的資料，不用乾等連線
+  load(!!c);
+} else showGate();
+</script>
+</body>
+</html>
