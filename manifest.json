@@ -1,0 +1,15 @@
+{
+ "name": "機車油耗保養紀錄",
+ "short_name": "MotoLog",
+ "display": "standalone",
+ "background_color": "#0b1120",
+ "theme_color": "#0f172a",
+ "lang": "zh-Hant-TW",
+ "icons": [
+  {
+   "src": "icon.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  }
+ ]
+}
