@@ -244,6 +244,52 @@ tr.dim td { color: var(--muted); }
 .banner.off { background: var(--warn-l); }
 .banner .sub { color: var(--sub); font-size: 13px; margin-top: 2px; }
 .loading { text-align: center; color: var(--muted); padding: 60px 0; }
+
+/* 欄位旁的「🗺 地圖」按鈕 */
+.with-btn { display: flex; gap: 8px; }
+.with-btn input { flex: 1; min-width: 0; }
+.with-btn .btn { flex: none; padding: 0 12px; }
+
+/* 地圖選加油站／機車行（OpenStreetMap + Leaflet） */
+.mapx { position: fixed; inset: 0; z-index: 70; background: var(--bg); display: flex; flex-direction: column; }
+.mapx[hidden] { display: none; }
+.mapx-head { display: flex; gap: 8px; align-items: center; padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  background: var(--card); border-bottom: 1px solid var(--border); }
+.mapx-head input { flex: 1; min-width: 0; border: 1px solid var(--input); background: var(--field); border-radius: 9px;
+  padding: 9px 12px; font-size: 16px; outline: none; }
+.mapx-head input:focus { border-color: var(--primary); }
+.mapx-head .icon-btn { background: var(--stripe); color: var(--text); border: 1px solid var(--border); }
+.mapx-body { position: relative; flex: 1; min-height: 0; }
+.mapx-map { position: absolute; inset: 0; background: var(--grid); }
+.mapx-res { position: absolute; inset: 0 0 auto; z-index: 1100; max-height: 60%; overflow-y: auto; margin: 0; padding: 0;
+  list-style: none; background: var(--card); border-bottom: 1px solid var(--border); box-shadow: 0 8px 20px rgba(0,0,0,.15); }
+.mapx-res[hidden] { display: none; }
+.mapx-res li { padding: 10px 14px; border-top: 1px solid var(--border); cursor: pointer; }
+.mapx-res li:first-child { border-top: 0; }
+.mapx-res li:active { background: var(--hover); }
+.mapx-res .a, .mapx-sel .a { color: var(--sub); font-size: 12.5px; }
+.mapx-msg { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1050; background: var(--card);
+  color: var(--sub); border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 13px; white-space: nowrap; }
+.mapx-msg:empty { display: none; }
+.mapx-sel { display: flex; gap: 10px; align-items: center; padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  background: var(--card); border-top: 1px solid var(--border); min-height: 64px; }
+.mapx-sel .main { flex: 1; min-width: 0; }
+.mapx-sel .n { font-weight: 700; }
+.mapx-sel .btn[disabled] { opacity: .45; }
+.mapx-kind { display: flex; padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--border); }
+.mapx-kind[hidden] { display: none; }
+.mapx-kind.seg { border-radius: 0; border-width: 0 0 1px; gap: 8px; background: var(--card); }
+.mapx-kind button { flex: 1; border-radius: 8px; border: 1px solid var(--border); }
+.mapx-me { position: absolute; left: 10px; right: 10px; bottom: 24px; z-index: 1050; display: flex; gap: 6px; align-items: baseline;
+  text-align: left; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 12px; font-size: 13.5px; box-shadow: 0 4px 14px rgba(0,0,0,.18); cursor: pointer; }
+.mapx-me[hidden] { display: none; }
+.mapx-me .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mapx-me .a { color: var(--sub); font-size: 12px; flex: none; }
+.nearby-go { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nearby-go .btn { padding: 18px 10px; font-size: 16px; }
+.mapx-dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
+.leaflet-container { font: inherit; }
 </style>
 </head>
 <body>
@@ -267,6 +313,23 @@ tr.dim td { color: var(--muted); }
   </form>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="mapx" id="mapx" hidden>
+  <div class="mapx-head">
+    <button type="button" class="icon-btn" id="mapxClose" aria-label="關閉地圖">✕</button>
+    <input id="mapxQ" type="search" autocomplete="off" enterkeyhint="search">
+    <button type="button" class="icon-btn" id="mapxLoc" title="我的位置" aria-label="我的位置">◎</button>
+  </div>
+  <div class="mapx-kind seg" id="mapxKind" hidden>
+    <button type="button" data-k="fuel">⛽ 加油站</button><button type="button" data-k="shop">🔧 機車行</button></div>
+  <div class="mapx-body">
+    <div class="mapx-map" id="mapxMap"></div>
+    <ul class="mapx-res" id="mapxRes" hidden></ul>
+    <div class="mapx-msg" id="mapxMsg"></div>
+    <button type="button" class="mapx-me" id="mapxMe" hidden></button>
+  </div>
+  <div class="mapx-sel"><div class="main" id="mapxSel"></div>
+    <button type="button" class="btn primary" id="mapxUse" disabled>使用</button></div>
+</div>
 
 <script>
 "use strict";
@@ -285,6 +348,13 @@ const TODAY = () => iso(new Date());
 const WD = "日一二三四五六";
 const dayLabel = s => { const d = new Date(s + "T00:00:00"); return `${s.slice(5).replace("-", "/")}（${WD[d.getDay()]}）`; };
 const STATE_TEXT = { over: "該保養了", soon: "即將到期", ok: "正常", none: "尚無紀錄" };
+const FEE_STATE_TEXT = { over: "已逾期", soon: "即將到期", ok: "正常" };  // 稅費、保險等固定到期日項目
+// 稅費、保險常用項目：[預設到期月, 日]；null＝依保單、行照上的日期自己填（與桌面版 FEE_PRESETS 相同）
+const FEE_PRESETS = { "牌照稅": [4, 30], "燃料費": [7, 31], "強制險": null, "任意險": null, "排氣定檢": null };
+function nextOn(m, d) {  // 今年的 m/d 還沒過就用今年，否則明年
+  const t = TODAY(), at = y => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  return at(+t.slice(0, 4)) >= t ? at(+t.slice(0, 4)) : at(+t.slice(0, 4) + 1);
+}
 
 // 兩種連線方式：
 //   直連：網頁由電腦提供（家用 Wi-Fi / Tailscale），網址 # 後面帶電腦的連線金鑰
@@ -595,10 +665,12 @@ const PAGES = [
   { id: "overview", icon: "🏠", name: "總覽", desc: "目前狀態一覽", tab: true },
   { id: "fuel", icon: "⛽", name: "加油紀錄", short: "加油", desc: "記錄每次加油的里程、油量與花費", tab: true },
   { id: "maint", icon: "🔧", name: "保養紀錄", short: "保養", desc: "每次進場保養的項目、費用與店家", tab: true },
-  { id: "remind", icon: "⏰", name: "保養提醒", desc: "依最近一次更換的里程與日期，自動推算下次保養" },
+  { id: "remind", icon: "⏰", name: "保養提醒", desc: "依最近一次更換的里程與日期推算下次保養；稅費、保險依到期日提醒" },
   { id: "stats", icon: "📊", name: "統計報表", short: "報表", desc: "油耗趨勢、每月花費與企業版 PRO 報表", tab: true },
   { id: "vehicles", icon: "🏍", name: "車輛管理", desc: "管理名下所有機車" },
+  { id: "fault", icon: "🚨", name: "故障排除", desc: "故障燈、閃爍碼與車況異常的說明及處理方式" },
   { id: "history", icon: "📈", name: "油價歷史", desc: "中油 92 / 95 / 98 歷年牌價走勢與調價紀錄" },
+  { id: "nearby", icon: "📍", name: "附近地圖", desc: "顯示目前位置與附近的加油站、機車行" },
   { id: "more", icon: "☰", name: "更多", desc: "其他功能", tab: true, mobileOnly: true },
 ];
 const page = () => (location.hash.slice(1) || "overview").split("?")[0];
@@ -626,13 +698,13 @@ function render() {
   const fab = $("#fab");
   fab.hidden = true;
   const v = $("#view");
-  if (!S.vehicles.length && !["vehicles", "history", "more"].includes(p.id)) {
+  if (!S.vehicles.length && !["vehicles", "history", "nearby", "more"].includes(p.id)) {
     v.innerHTML = statusBanner() + head(p) + `<div class="card empty"><b>歡迎使用！</b>請先建立你的第一台機車。<br>建立後會自動帶入常見保養項目的提醒週期。
       <br><br><button class="btn primary" onclick="vehicleForm()">＋ 新增車輛</button></div>`;
     return;
   }
   ({ overview: pOverview, fuel: pFuel, maint: pMaint, remind: pRemind, stats: pStats, vehicles: pVehicles,
-     history: pHistory, more: pMore }[p.id])(v, p, fab);
+     history: pHistory, nearby: pNearby, more: pMore, fault: pFault }[p.id])(v, p, fab);
   v.insertAdjacentHTML("afterbegin", statusBanner());
   drawCharts();
 }
@@ -642,6 +714,23 @@ function stat(k, v, s = "", accent = "", cls = "", vcls = "") {
     <div class="k">${k}</div><div class="v num ${vcls}">${v}</div>${s !== null ? `<div class="s">${s || "&nbsp;"}</div>` : ""}</div>`;
 }
 
+// 這台車省不省油：與電腦版 fuel_rating 相同（依排氣量的一般實際油耗概略估算）
+const EFF_RANGES = [[50, 35, 45], [125, 30, 38], [180, 27, 34], [300, 22, 30], [99999, 17, 24]];
+function engineCc(x) {
+  if (+x?.cc) return +x.cc;  // 車輛資料有填排氣量就用它
+  const t = `${x?.model || ""} ${x?.name || ""}`;
+  const m = t.match(/(\d{2,4})\s*(?:c\.?c\.?|西西)/i) ||
+    t.match(/(?<!\d)(50|90|100|110|115|125|150|155|158|160|165|180|200|250|300|350|400|500|550|600)(?!\d)/);
+  return m ? +m[1] : null;
+}
+function fuelRating(avg, x) {
+  if (!avg) return null;
+  const cc = engineCc(x), c = cc || 125, [, lo, hi] = EFF_RANGES.find(r => c <= r[0] + 0.9);  // 124.6 也算 125cc
+  const cls = c <= 300 ? [50, 125, 180, 300].find(n => c <= n + 0.9) + "cc" : "300cc 以上";
+  const note = `${cls}${cc ? "" : "（推估）"} 一般約 ${lo}–${hi}`;
+  return avg >= hi ? ["省油", "ok", note] : avg >= lo ? ["普通", "warn", note] : ["偏耗油", "danger", note];
+}
+
 // ---------------------------------------------------------------- 總覽
 function pOverview(v, p) {
   const s = S.summary;
@@ -649,19 +738,23 @@ function pOverview(v, p) {
   const remind = over.length ? [`${over.length} 項到期`, "c-danger", over] : soon.length ? [`${soon.length} 項將到期`, "c-warn", soon]
     : ["狀態良好", "c-ok", []];
   const recent = [...S.fuel].reverse().slice(0, 5);
-  v.innerHTML = head(p) + `
+  v.innerHTML = head(p) + loanBanner() + `
     <div class="grid g4">
       ${stat("目前里程", `${n0(s.cur)} km`, `共 ${n0(s.dist)} km · ${s.count} 次加油`, "primary")}
-      ${stat("平均油耗", s.avg ? `${s.avg.toFixed(1)} km/L` : "—", s.last_eff ? `最近一次 ${s.last_eff.toFixed(1)}` : "需兩次加滿才能計算", "ok")}
+      ${(() => { const r = fuelRating(s.avg, S.vehicles.find(x => x.id === VID));
+        const veh = S.vehicles.find(x => x.id === VID), rng = veh?.tank && s.avg ? ` · 滿箱約 ${n0(veh.tank * s.avg)} km` : "";
+        return stat("平均油耗", s.avg ? `${s.avg.toFixed(1)} km/L` : "—",
+          (r ? `${r[0] === "省油" ? "✔ " : ""}${r[0]} · ${r[2]}${rng}`
+             : s.last_eff ? `最近一次 ${s.last_eff.toFixed(1)}` : "需兩次加滿才能計算"), "ok", "", r ? "c-" + r[1] : ""); })()}
       ${stat("本月花費", money(s.month_fuel + s.month_maint), `油 ${money(s.month_fuel)} · 保養 ${money(s.month_maint)}`, "violet")}
       ${stat("保養狀態", remind[0], remind[2].map(r => r.item).join("、") || "沒有到期的項目", "amber", "", remind[1])}
     </div>
     <div class="quick"><button class="btn primary" onclick="fuelForm()">⛽ 記一筆加油</button>
       <button class="btn" onclick="maintForm()">🔧 記一筆保養</button></div>
     ${pricesCard()}
-    <div class="card"><div class="card-head"><h2>需要注意的保養</h2><a class="sub" href="#remind">全部提醒 ›</a></div>
+    <div class="card"><div class="card-head"><h2>需要注意的保養、稅費</h2><a class="sub" href="#remind">全部提醒 ›</a></div>
       ${[...over, ...soon].length ? `<ul class="list">${[...over, ...soon].map(remindItem).join("")}</ul>`
-        : `<div class="empty" style="padding:18px">目前沒有到期的保養項目 ✓</div>`}</div>
+        : `<div class="empty" style="padding:18px">目前沒有到期的保養、稅費項目 ✓</div>`}</div>
     <div class="card"><div class="card-head"><h2>最近加油</h2><a class="sub" href="#fuel">全部 ›</a></div>
       ${recent.length ? `<ul class="list">${recent.map(fuelItem).join("")}</ul>` : `<div class="empty" style="padding:18px">尚無加油紀錄</div>`}</div>`;
 }
@@ -730,8 +823,7 @@ function fuelForm(id) {
     <div class="f2"><label class="f"><span>單價 (元/公升)<b class="hint" id="discHint"></b></span><input name="price" inputmode="decimal" value="${fmt(init.price)}"></label>
       <label class="f"><span>金額 (元)</span><input name="total" inputmode="decimal" value="${fmt(init.total)}"></label></div>
     <label class="check"><input type="checkbox" name="full" ${init.full ? "checked" : ""}>有加滿（用來計算油耗）</label>
-    <label class="f"><span>加油站</span><input name="station" list="stList" value="${esc(init.station)}" autocomplete="off">
-      <datalist id="stList">${(S.recent_stations || []).map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
+    ${placeField("加油站", "station", "fuel", init.station, S.recent_stations)}
     <div class="f2"><label class="check" style="margin-top:22px"><input type="checkbox" name="self_service" ${init.self_service ? "checked" : ""}>自助加油</label>
       <label class="f"><span>付款方式</span><select name="payment"><option value=""></option>${opts(S.payments, init.payment)}</select></label></div>
     <label class="f"><span>備註</span><input name="note" value="${esc(init.note)}"></label>`,
@@ -806,8 +898,7 @@ function maintForm(id, preset) {
       `<label><input type="checkbox" name="items" value="${esc(o)}" ${items.includes(o) ? "checked" : ""}><span>${esc(o)}</span></label>`).join("")}</div></div>
     <label class="f"><span>其他項目（多個用「、」分隔）</span><input name="other" value="${esc(other)}"></label>
     <label class="f"><span>總金額 (元)</span><input name="cost" inputmode="decimal" value="${fmt(r?.cost)}"></label>
-    <label class="f"><span>店家</span><input name="shop" list="shopList" value="${esc(r?.shop)}" autocomplete="off">
-      <datalist id="shopList">${(S.recent_shops || []).map(s => `<option value="${esc(s)}">`).join("")}</datalist></label>
+    ${placeField("店家", "shop", "shop", r?.shop, S.recent_shops)}
     <label class="f"><span>備註</span><input name="note" value="${esc(r?.note)}"></label>`,
     data => {
       const odo = numv(data.odometer);
@@ -826,6 +917,11 @@ function maintForm(id, preset) {
 
 // ---------------------------------------------------------------- 提醒
 function remindItem(r) {
+  if (r.fixed) return `<li class="item" onclick="remindAct(${r.id})">
+    <div class="main"><div class="t1">📄 ${esc(r.item)}<span class="badge ${r.state}">${FEE_STATE_TEXT[r.state]}</span></div>
+      <div class="t2">${esc(r.remain)} · 到期 ${r.due_date}</div>
+      <div class="t2">${r.interval_months ? `每 ${r.interval_months} 個月繳一次` : "一次性項目"}${r.last_done ? ` · 上次 ${r.last_done}` : ""}</div></div>
+    <div class="side-v"><button class="btn sm" onclick="event.stopPropagation();feeDone(${r.id})">✔ 已繳</button></div></li>`;
   const nxt = [r.next_km ? `${n0(r.next_km)} km` : "", r.next_date || ""].filter(Boolean).join(" / ");
   return `<li class="item" onclick="remindAct(${r.id})">
     <div class="main"><div class="t1">${esc(r.item)}<span class="badge ${r.state}">${STATE_TEXT[r.state]}</span></div>
@@ -837,27 +933,44 @@ function remindItem(r) {
 function pRemind(v, p, fab) {
   v.innerHTML = head(p) + (S.reminders.length ? `<div class="card"><ul class="list">${S.reminders.map(remindItem).join("")}</ul></div>`
     : `<div class="card empty"><b>尚無提醒項目</b></div>`) +
-    `<p class="sub" style="text-align:center;margin-top:16px">按「✔ 完成」可快速新增保養紀錄；點項目可修改週期</p>`;
+    `<p class="sub" style="text-align:center;margin-top:16px">按「✔ 完成」可快速新增保養紀錄；稅費、保險按「✔ 已繳」會排到下一期；點項目可修改</p>`;
   fab.hidden = false; fab.textContent = "＋ 提醒項目"; fab.onclick = () => remindForm();
 }
 function remindAct(id) { remindForm(id); }
+function feeDone(id) {
+  const r = S.reminders.find(x => x.id === id);
+  const nxt = r.interval_months ? addMonths(r.due_date, r.interval_months) : null;
+  if (!confirm(`「${r.item}」已經繳費／完成了嗎？\n\n${nxt ? `下次到期日會改為 ${nxt}` : "這是一次性項目，確認後會從提醒清單移除"}`)) return;
+  save("/api/reminder/done", { id }, `✔ ${r.item} 已繳`).catch(e => toast(e.message, 4500));
+}
 
 function remindForm(id) {
   const r = id ? S.reminders.find(x => x.id === id) : null;
   openSheet(r ? "編輯提醒項目" : "新增提醒項目", `
-    <label class="f"><span>項目名稱 *</span><input name="item" value="${esc(r?.item)}"></label>
+    <label class="f"><span>項目名稱 *</span><input name="item" list="remItemList" autocomplete="off" value="${esc(r?.item)}"></label>
+    <datalist id="remItemList">${[...Object.keys(FEE_PRESETS), ...(S.maint_items || []).filter(i => !(i in FEE_PRESETS))]
+      .map(i => `<option value="${esc(i)}">`).join("")}</datalist>
     <div class="f2"><label class="f"><span>每隔幾公里</span><input name="interval_km" inputmode="numeric" value="${fmt(r?.interval_km ?? 0)}"></label>
       <label class="f"><span>每隔幾個月</span><input name="interval_months" inputmode="numeric" value="${r?.interval_months ?? 0}"></label></div>
-    <p class="sub">填 0 代表不以該條件提醒；兩者先到者為準</p>`,
+    <label class="f"><span>到期日（稅費、保險）</span><input type="date" name="due_date" value="${esc(r?.due_date)}"></label>
+    <p class="sub">保養：填公里／月份，兩者先到者為準 · 稅費、保險：填到期日，月份＝多久繳一次</p>`,
     data => {
       const item = data.item.trim();
       need(item, "請輸入項目名稱");
       need(!/[、,]/.test(item), "項目名稱不可包含「、」或逗號");
-      need(numv(data.interval_km) || numv(data.interval_months), "公里或月份至少要設定一個");
+      if (data.due_date) need(!numv(data.interval_km), "有到期日的項目（稅費、保險）不能設定公里間隔");
+      else need(numv(data.interval_km) || numv(data.interval_months), "公里或月份至少要設定一個（稅費、保險請改填到期日）");
       return save("/api/reminder", { ...data, id: r?.id }, `⏰ ${r ? "修改" : "新增"}提醒項目「${item}」`);
     },
     r && (() => remove("/api/reminder/delete", r.id, "確定要刪除這個提醒項目？（不會刪除保養紀錄）",
-      `🗑 刪除提醒項目「${r.item}」`)));
+      `🗑 刪除提醒項目「${r.item}」`)),
+    form => form.querySelector("[name=item]").addEventListener("change", e => {  // 選了稅費、保險常用項目：帶入每年一次與預設到期日
+      const el = form.elements, item = e.target.value.trim();  // form.elements.item 是內建方法，不能直接取欄位
+      if (!(item in FEE_PRESETS)) return;
+      el.interval_km.value = 0;
+      if (!numv(el.interval_months.value)) el.interval_months.value = 12;
+      if (FEE_PRESETS[item] && !el.due_date.value) el.due_date.value = nextOn(...FEE_PRESETS[item]);
+    }));
 }
 
 // ---------------------------------------------------------------- 統計報表
@@ -936,10 +1049,62 @@ function proHtml() {
 }
 
 // ---------------------------------------------------------------- 車輛
+// 車貸本息平均攤還（與電腦版 loan_plan 相同算法）：rate 年利率 %，0＝零利率分期
+function addMonths(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number), t = new Date(y, m - 1 + n, 1);
+  t.setDate(Math.min(d, new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate()));
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+function vehicleLoan(x) {
+  const amount = +x.loan_amount || 0, n = Math.floor(+x.loan_months || 0), r = (+x.loan_rate || 0) / 1200;
+  if (!amount || n < 1) return null;
+  const pay = r ? amount * r / (1 - (1 + r) ** -n) : amount / n;
+  const out = { pay: Math.round(pay), total: Math.round(pay * n), interest: Math.round(pay * n - amount), months: n, paid: null };
+  const start = x.loan_start || (x.buy_date ? addMonths(x.buy_date, 1) : "");  // 首期繳款日空白＝購車日隔月
+  if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+    const today = new Date().toLocaleDateString("sv");
+    let paid = 0;  // 電腦版有人工確認的期數就用它，否則（試算中）以繳款日已過當作已繳
+    if (Array.isArray(x.loan_paid)) paid = x.loan_paid.filter(k => k <= n).length;
+    else while (paid < n && addMonths(start, paid) <= today) paid++;
+    Object.assign(out, { paid, left: Math.round(pay * (n - paid)), next: paid < n ? addMonths(start, paid) : null });
+  }
+  return out;
+}
+// 最早一期還沒確認繳款的資訊（days 為負＝逾期）；3 天內到期或逾期會在首頁顯示提醒
+function loanDue(x) {
+  const p = vehicleLoan(x), start = x.loan_start || (x.buy_date ? addMonths(x.buy_date, 1) : "");
+  if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
+  const today = new Date().toLocaleDateString("sv"), paid = new Set(x.loan_paid || []);
+  for (let i = 0; i < p.months; i++) {
+    const d = addMonths(start, i);
+    if (Array.isArray(x.loan_paid) ? !paid.has(i + 1) : d >= today) return { date: d, period: i + 1, months: p.months, pay: p.pay,
+      days: Math.round((new Date(d) - new Date(today)) / 864e5) };
+  }
+  return null;
+}
+function loanBanner() {
+  return S.vehicles.map(x => [x, loanDue(x)]).filter(([, d]) => d && d.days <= 3).map(([x, d]) => `
+    <div class="card" style="border-left:4px solid var(--${d.days > 0 ? "amber" : "danger"})"><b>💰 車貸繳款提醒：${esc(x.name)}</b>
+      <div class="sub">第 ${d.period}/${d.months} 期 ${money(d.pay)} · 繳款日 ${d.date}（${d.days === 0 ? "今天" : d.days === 1 ? "明天" : d.days > 0 ? d.days + " 天後" : "已逾期 " + -d.days + " 天"}）· 繳完請在電腦版確認</div></div>`).join("");
+}
+// 車齡：從購車日期算到今天，例如「2 年 1 個月 28 天」（與電腦版 car_age 相同）
+function carAge(d) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d || "")) return "";
+  const [y, m, day] = d.split("-").map(Number), t = new Date(), b = new Date(y, m - 1, day);
+  if (b > t) return "";
+  const months = (t.getFullYear() - y) * 12 + t.getMonth() + 1 - m - (t.getDate() < day ? 1 : 0);
+  const mo = Math.max(months, 0), [ay, am, ad] = addMonths(d, mo).split("-").map(Number);
+  const days = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - new Date(ay, am - 1, ad)) / 864e5);  // 滿幾個月之後多出的天數
+  return [Math.floor(mo / 12) && Math.floor(mo / 12) + " 年", mo % 12 && mo % 12 + " 個月", (days || !mo) && days + " 天"].filter(Boolean).join(" ");
+}
+const loanText = p => !p ? "" : `車貸 ${money(p.pay)} × ${p.months} 期` +
+  (p.paid == null ? "" : p.paid >= p.months ? "（已繳清）" : `（已繳 ${p.paid}/${p.months}）`);
+
 function pVehicles(v, p, fab) {
   v.innerHTML = head(p) + (S.vehicles.length ? `<div class="card"><ul class="list">${S.vehicles.map(x => `
     <li class="item" onclick="vehicleForm(${x.id})"><div class="main"><div class="t1">${esc(x.name)}${x.id === VID ? `<span class="badge ok">目前車輛</span>` : ""}</div>
-      <div class="t2">${[x.plate, x.model, x.buy_date && "購車 " + x.buy_date, x.note].filter(Boolean).map(esc).join(" · ") || "—"}</div></div>
+      <div class="t2">${[x.plate, x.model, x.buy_date && "購車 " + x.buy_date, carAge(x.buy_date) && "車齡 " + carAge(x.buy_date),
+        x.cc && fmt(x.cc) + " c.c.", x.tank && "油箱 " + fmt(x.tank) + " L", x.emission, x.brakes, x.lights, loanText(vehicleLoan(x)), x.note].filter(Boolean).map(esc).join(" · ") || "—"}</div></div>
       ${x.id !== VID ? `<div class="side-v"><button class="btn sm" onclick="event.stopPropagation();pickVehicle(${x.id})">切換</button></div>` : ""}</li>`).join("")}</ul></div>`
     : `<div class="card empty"><b>尚無車輛</b></div>`);
   fab.hidden = false; fab.textContent = "＋ 車輛"; fab.onclick = () => vehicleForm();
@@ -953,6 +1118,19 @@ function vehicleForm(id) {
     <div class="f2"><label class="f"><span>車牌</span><input name="plate" value="${esc(r?.plate)}"></label>
       <label class="f"><span>車型</span><input name="model" value="${esc(r?.model)}"></label></div>
     <label class="f"><span>購車日期</span><input type="date" name="buy_date" value="${esc(r?.buy_date)}"></label>
+    <div class="f2"><label class="f"><span>排氣量 (c.c.)</span><input name="cc" inputmode="decimal" value="${esc(r?.cc ? fmt(r.cc) : "")}"></label>
+      <label class="f"><span>油箱容量 (L)</span><input name="tank" inputmode="decimal" value="${esc(r?.tank ? fmt(r.tank) : "")}"></label></div>
+    <label class="f"><span>燈具</span><input name="lights" value="${esc(r?.lights)}"></label>
+    <div class="f2"><label class="f"><span>煞車系統</span><input name="brakes" list="brakeList" value="${esc(r?.brakes)}"></label>
+      <label class="f"><span>排放標準</span><input name="emission" list="emissionList" value="${esc(r?.emission)}"></label></div>
+    <datalist id="brakeList">${["前後雙碟", "前碟後鼓", "前後鼓煞", "CBS 連動煞車", "ABS 防鎖死"].map(n => `<option value="${n}">`).join("")}</datalist>
+    <datalist id="emissionList">${["七期", "六期", "五期", "四期", "電動車"].map(n => `<option value="${n}">`).join("")}</datalist>
+    <div class="f2"><label class="f"><span>車貸金額 (元)</span><input name="loan_amount" inputmode="numeric" value="${esc(r?.loan_amount ? fmt(r.loan_amount) : "")}"></label>
+      <label class="f"><span>年利率 (%)</span><input name="loan_rate" inputmode="decimal" placeholder="0＝零利率" value="${esc(r?.loan_amount ? fmt(r.loan_rate) : "")}"></label></div>
+    <div class="f2"><label class="f"><span>分期期數</span><input name="loan_months" inputmode="numeric" list="loanMonths" value="${esc(r?.loan_months || "")}"></label>
+      <label class="f"><span>首期繳款日</span><input type="date" name="loan_start" value="${esc(r?.loan_start)}"></label></div>
+    <datalist id="loanMonths">${[6, 12, 18, 24, 30, 36, 42, 48, 60].map(n => `<option value="${n}">`).join("")}</datalist>
+    <p class="sub" id="loanHint"></p>
     <label class="f"><span>備註</span><input name="note" value="${esc(r?.note)}"></label>
     ${r ? "" : `<p class="sub">新增後會自動建立常見保養項目的提醒</p>`}`,
     async data => {
@@ -971,7 +1149,23 @@ function vehicleForm(id) {
       if (!confirm(msg)) return;
       try { await direct("/api/vehicle/delete", { id: r.id }); closeSheet(); toast("已刪除"); await load(true); }
       catch (e) { $("#sheetErr").textContent = e.message; }
-    }));
+    }),
+    form => {
+      // 車貸金額／利率／期數一變動就即時試算月付與總利息
+      const f = form.elements, num = el => el.value.replace(/,/g, "");
+      const update = () => {
+        const p = vehicleLoan({ loan_amount: num(f.loan_amount), loan_rate: num(f.loan_rate), loan_months: num(f.loan_months),
+                                loan_start: f.loan_start.value, buy_date: f.buy_date.value });
+        const h = $("#loanHint");
+        h.style.color = p ? "var(--ok)" : "";
+        h.style.fontWeight = p ? "700" : "";
+        h.textContent = !p ? "填入車貸金額與期數，會自動算出每月應繳；首期繳款日空白＝購車日隔月"
+          : `每月應繳 ${money(p.pay)}，共 ${p.months} 期，總繳 ${money(p.total)}` + (p.interest ? `，利息 ${money(p.interest)}` : "（零利率）") +
+            (p.paid == null ? "" : p.paid >= p.months ? "。已全部繳清" : `。已繳 ${p.paid} 期，剩 ${p.months - p.paid} 期未繳 ${money(p.left)}，下期 ${p.next}`);
+      };
+      for (const k of ["loan_amount", "loan_rate", "loan_months", "loan_start", "buy_date"]) f[k].addEventListener("input", update);
+      update();
+    });
 }
 
 // ---------------------------------------------------------------- 油價歷史
@@ -1024,12 +1218,55 @@ function pHistory(v, p) {
 }
 
 // ---------------------------------------------------------------- 更多（手機）
+function pNearby(v, p) {
+  v.innerHTML = head(p) + `<div class="card card-pad">
+    <div class="nearby-go"><button class="btn primary" onclick="pickPlace('fuel')">⛽ 附近加油站</button>
+      <button class="btn primary" onclick="pickPlace('shop')">🔧 附近機車行</button></div>
+    <p class="sub" style="margin:12px 0 0">開啟後會用手機 GPS 顯示你目前的位置與地址，並列出最近的加油站或機車行；
+      點選後可按「🧭 導航」用 Google 地圖帶路。GPS 需要用雲端同步（https）網址開啟。</p></div>`;
+}
+
 function pMore(v, p) {
   const links = PAGES.filter(x => !x.tab);
   v.innerHTML = head(p) + `<div class="card more">${links.map(x =>
     `<a href="#${x.id}"><span class="i">${x.icon}</span><span><b>${x.name}</b><br><span class="d">${x.desc}</span></span></a>`).join("")}</div>
     <p class="sub" style="text-align:center;margin-top:18px">${esc(S.app.title)} v${esc(S.app.version)}<br>
     資料存在電腦上的 moto_records.db，手機只是遠端操作<br>在瀏覽器選單點「加入主畫面」，用起來就像 App</p>`;
+}
+
+// ---------------------------------------------------------------- 故障排除（內容由電腦版提供）
+let faultQ = "", faultCat = "all";
+const FAULT_LEVELS = { danger: ["⚠ 立即處理", "c-danger"], warn: ["盡快檢修", "c-warn"], info: ["注意", ""] };
+function pFault(v, p) {
+  const g = S.fault_guide;
+  if (!g) { v.innerHTML = head(p) + `<div class="card empty">請更新電腦版 MotoLog 後再開啟</div>`; return; }
+  v.innerHTML = head(p) + `
+    <div class="card" style="border-left:4px solid var(--warn)"><div class="sub">適用：${esc(g.model)}<br>${esc(g.notice)}</div>
+      <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
+        <a class="btn primary sm" href="${esc(g.manual_url)}" target="_blank" rel="noopener">📄 原廠使用說明書</a>
+        <button class="btn sm" onclick="faultSteps()">🔢 怎麼讀閃爍碼</button></div></div>
+    <div class="card"><input id="faultQ" placeholder="輸入閃爍碼（例如 4）或關鍵字" value="${esc(faultQ)}" style="width:100%">
+      <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">${[["all", "全部"], ...g.sections.map(x => [x.key, x.title])].map(([k, t]) =>
+        `<button class="btn sm ${faultCat === k ? "primary" : ""}" onclick="faultCat='${k}';render()">${esc(t)}</button>`).join("")}</div></div>
+    <div id="faultList"></div>`;
+  const q = $("#faultQ");
+  q.oninput = () => { faultQ = q.value; drawFault(); };
+  drawFault();
+}
+function drawFault() {
+  const g = S.fault_guide, q = faultQ.trim();
+  const rows = g.sections.filter(sec => faultCat === "all" || faultCat === sec.key).flatMap(sec => sec.items
+    .filter(it => !q || (/^\d+$/.test(q) ? it.code && +q === +it.code : `${it.code} ${it.name} ${it.detail} ${it.action}`.includes(q)))  // 數字只比對閃爍碼
+    .map(it => [sec, it]));
+  $("#faultList").innerHTML = rows.length ? rows.map(([sec, it]) => `
+    <details class="card"${rows.length === 1 ? " open" : ""}><summary><b class="${FAULT_LEVELS[it.level][1]}">${it.code ? `【${esc(it.code)}】` : ""}${esc(it.name)}</b>
+      <span class="sub"> · ${FAULT_LEVELS[it.level][0]}</span></summary>
+      <p>${esc(it.detail)}</p><p><b>▶ 處理：</b>${esc(it.action)}</p><p class="sub">資料來源：${esc(sec.src)}</p></details>`).join("")
+    : `<div class="card empty">找不到符合的項目；閃爍碼請輸入數字，例如 4 或 12</div>`;
+}
+function faultSteps() {
+  alert("怎麼讀故障燈閃爍碼\n\n" + S.fault_guide.read_steps.map((x, i) => `${i + 1}. ${x}`).join("\n") +
+    "\n\n※ 此為同系統噴射車常見的手動讀碼方式，七期車款不一定適用；讀不到或碼不符時，請以三陽經銷商的噴射系統診斷器為準。");
 }
 
 // ---------------------------------------------------------------- 表單（底部 sheet）
@@ -1049,7 +1286,11 @@ function openSheet(title, body, onSubmit, onDelete, onOpen) {
 function closeSheet() { $("#sheet").hidden = true; document.body.style.overflow = ""; }
 $("#sheetClose").onclick = closeSheet;
 $("#sheet").onclick = e => { if (e.target.id === "sheet") closeSheet(); };
-document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (!$("#mapx").hidden) mapClose();  // 地圖疊在表單上：先關地圖
+  else if (!$("#sheet").hidden) closeSheet();
+});
 $("#sheetForm").onsubmit = async e => {
   e.preventDefault();
   const form = e.target, data = {};
@@ -1064,6 +1305,262 @@ $("#sheetForm").onsubmit = async e => {
   try { const res = await sheetSubmit(data); if (res) closeSheet(); }
   catch (err) { $("#sheetErr").textContent = err.message; }
   finally { ok.disabled = false; }
+};
+
+// ---------------------------------------------------------------- 地圖選加油站／機車行
+// 名單與桌面版相同（stations_tw.json / shops_tw.json，由電腦或 GitHub Pages 提供），圖磚用 OpenStreetMap
+const LEAFLET = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/";
+const MAP_KINDS = {
+  fuel: { noun: "加油站", file: "stations_tw.json", key: "stations", recent: () => S.recent_stations,
+    colors: [["中油", "#2563eb"], ["台塑", "#dc2626"], ["台亞", "#ec4899"], ["福懋", "#f97316"], ["全國", "#16a34a"],
+      ["統一", "#14b8a6"], ["台糖", "#7c3aed"]] },
+  shop: { noun: "機車行", file: "shops_tw.json", key: "shops", recent: () => S.recent_shops,
+    colors: [["光陽|kymco", "#16a34a"], ["三陽|sym", "#2563eb"], ["山葉|yamaha", "#dc2626"], ["gogoro", "#14b8a6"],
+      ["宏佳騰|aeon", "#f97316"], ["比雅久|pgo", "#a855f7"], ["鈴木|suzuki", "#ec4899"]] },
+};
+const MX = { map: null, layer: null, kind: null, input: null, places: [], sel: null, me: null, addr: "", browse: false, meM: null, accC: null, msgT: 0, watch: null, watchT: 0, dragged: false };
+const norm = s => String(s ?? "").toLowerCase().replace(/臺/g, "台");
+
+function placeField(label, name, kind, value, recent) {
+  return `<div class="f"><span>${label}</span><div class="with-btn">
+    <input name="${name}" list="${name}List" value="${esc(value)}" autocomplete="off" aria-label="${label}">
+    <button type="button" class="btn" onclick="pickPlace('${kind}', this.previousElementSibling)">🗺 地圖</button></div>
+    <datalist id="${name}List">${(recent || []).map(s => `<option value="${esc(s)}">`).join("")}</datalist></div>`;
+}
+
+let leafletP = null;
+function loadLeaflet() {
+  return leafletP ||= new Promise((ok, no) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = LEAFLET + "leaflet.min.css";
+    const js = document.createElement("script");
+    js.src = LEAFLET + "leaflet.min.js"; js.onload = ok;
+    js.onerror = () => { leafletP = null; css.remove(); js.remove(); no(new Error("地圖元件載入失敗，請確認網路連線")); };
+    document.head.append(css, js);
+  });
+}
+const placeData = {};
+function loadPlaces(kind) {
+  const k = MAP_KINDS[kind];
+  return placeData[kind] ||= fetch(k.file).then(r => { if (!r.ok) throw 0; return r.json(); })
+    // 存進紀錄的名稱與桌面版相同：只有品牌名時補上地址以便辨識
+    .then(j => j[k.key].map(p => ({ ...p, label: p.name === p.brand && p.addr ? `${p.name}（${p.addr}）` : p.name || "（未命名）" })))
+    .catch(() => { delete placeData[kind]; throw new Error(`${k.noun}名單載入失敗，請確認網路連線`); });
+}
+
+const distKm = (a, b) => {
+  const r = Math.PI / 180, h = Math.sin((b.lat - a.lat) * r / 2) ** 2 +
+    Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lon - a.lon) * r / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+const distTxt = d => d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
+function mapMsg(t, ms) {
+  clearTimeout(MX.msgT);
+  $("#mapxMsg").textContent = t;
+  if (ms) MX.msgT = setTimeout(() => { $("#mapxMsg").textContent = ""; }, ms);
+}
+
+// input：要填入的欄位；沒有欄位＝「附近地圖」瀏覽模式。switching：瀏覽模式切換加油站／機車行，保留目前位置與地圖範圍
+async function pickPlace(kind, input = null, switching = false) {
+  const k = MAP_KINDS[kind];
+  Object.assign(MX, { kind, input, browse: !input, sel: null, places: [] });
+  if (!switching) {
+    MX.me = null; MX.addr = "";
+    MX.meM?.remove(); MX.accC?.remove();
+    mapMeChip();
+  }
+  $("#mapxKind").hidden = !MX.browse;
+  for (const b of $("#mapxKind").children) b.classList.toggle("on", b.dataset.k === kind);
+  $("#mapxUse").textContent = MX.browse ? "🧭 導航" : "使用";
+  $("#mapx").hidden = false;
+  $("#mapxQ").value = ""; $("#mapxQ").placeholder = `搜尋${k.noun}名稱或地址`;
+  $("#mapxRes").hidden = true;
+  mapSelect(null);
+  mapMsg("載入中…");
+  try {
+    const [, places] = await Promise.all([loadLeaflet(), loadPlaces(kind)]);
+    if ($("#mapx").hidden || MX.kind !== kind) return;
+    MX.places = places;
+    mapInit();
+    mapMsg("");
+    if (switching) { if (MX.me) mapNearby(); return; }
+    // 欄位已有名稱 → 直接定位到該處；否則先看最近去過的。兩種情況都會偵測目前位置並列出附近的店家／加油站
+    const find = n => n && places.find(p => p.label === n || p.name === n);
+    const hit = find(input?.value.trim());
+    const recent = !hit && (k.recent() || []).map(find).find(Boolean);
+    if (hit) { MX.map.setView([hit.lat, hit.lon], 16); mapSelect(hit); }
+    else MX.map.setView(recent ? [recent.lat, recent.lon] : [23.7, 120.95], recent ? 14 : 7);
+    mapLocate(true);
+  } catch (e) { mapMsg(e.message); }
+}
+
+function mapInit() {
+  $("#mapx").classList.toggle("mapx-dark", getComputedStyle(document.documentElement).colorScheme === "dark");
+  if (!MX.map) {
+    MX.map = L.map("mapxMap", { zoomControl: false, renderer: L.canvas({ tolerance: 10 }) });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(MX.map);
+    MX.layer = L.layerGroup().addTo(MX.map);
+    MX.map.on("click", () => { $("#mapxRes").hidden = true; });
+    MX.map.on("dragstart", () => { MX.dragged = true; });  // 使用者自己拖曳後，定位校正就不再移動地圖
+  }
+  MX.map.invalidateSize();
+  MX.layer.clearLayers();
+  const colors = MAP_KINDS[MX.kind].colors;
+  for (const p of MX.places) {
+    const t = norm(`${p.brand} ${p.name}`);
+    const color = (colors.find(([w]) => w.split("|").some(x => t.includes(x))) || [, "#94a3b8"])[1];
+    p._m = L.circleMarker([p.lat, p.lon], { radius: 7, color: "#0f172a", weight: 1, fillColor: color, fillOpacity: .9 })
+      .on("click", e => { L.DomEvent.stopPropagation(e); mapSelect(p); }).addTo(MX.layer);
+  }
+}
+
+function mapSelect(p) {
+  const style = on => on ? { radius: 11, color: "#fff", weight: 3 } : { radius: 7, color: "#0f172a", weight: 1 };
+  MX.sel?._m?.setStyle(style(false));
+  MX.sel = p;
+  if (p?._m) { p._m.setStyle(style(true)); p._m.bringToFront(); }
+  const info = p && [p.addr || "（地圖資料未提供地址）", p.phone, MX.me && (MX.me.rough ? "約 " : "") + distTxt(distKm(MX.me, p))].filter(Boolean).join(" · ");
+  $("#mapxSel").innerHTML = p ? `<div class="n">${esc(p.label)}</div><div class="a">${esc(info)}</div>`
+    : `<div class="a">點選地圖上的${MAP_KINDS[MX.kind]?.noun || ""}${MX.browse ? "查看資訊" : ""}，或在上方搜尋</div>`;
+  $("#mapxUse").disabled = !p;
+}
+
+// 持續 GPS 定位：手機先給的常是 Wi-Fi／基地台推估（偏差大），之後才收到衛星定位；
+// 只採用越來越準的位置，精準度到 ±50 m 內或 25 秒後停止。不用快取的舊位置，也不用 IP 推估（常差好幾公里）
+const GOOD_ACC = 50, ROUGH_ACC = 150;
+function mapStopLocate() {
+  if (MX.watch != null) navigator.geolocation.clearWatch(MX.watch);
+  clearTimeout(MX.watchT);
+  MX.watch = null;
+}
+function mapLocate(auto) {
+  mapStopLocate();
+  if (!navigator.geolocation || !window.isSecureContext) {  // 瀏覽器只允許 HTTPS 網頁使用 GPS
+    mapMsg("這個網址是 http，手機不允許 GPS 定位；請改用雲端同步（https）網址開啟", 7000);
+    return;
+  }
+  const live = () => !$("#mapx").hidden && MX.map;
+  const keep = auto && MX.sel;  // 欄位原本就有名稱：只更新距離，不移動地圖也不改選取
+  let best = null;
+  MX.dragged = false;
+  mapMsg("GPS 定位中…");
+  if (!MX.me) { $("#mapxMe").hidden = false; $("#mapxMe").innerHTML = `<span class="t">📍 正在取得目前位置…</span>`; }
+  const settle = () => {  // 定位結束：人就在店裡／站裡（150 公尺內）且夠準時自動選取
+    mapStopLocate();
+    if (!live() || !best) return;
+    mapAddress(best);
+    const acc = best.acc;
+    mapMsg(acc > GOOD_ACC ? `定位精準度約 ±${Math.round(acc)} m，位置可能有偏差` : "", 5000);
+    if (keep || MX.dragged || acc > GOOD_ACC) return;
+    const near = MX.places.reduce((b, p) => { const d = distKm(best, p); return d < b[0] ? [d, p] : b; }, [0.15, null])[1];
+    if (near) { mapSelect(near); $("#mapxRes").hidden = true; MX.map.setView([near.lat, near.lon], 17); }
+  };
+  MX.watch = navigator.geolocation.watchPosition(pos => {
+    if (!live()) return mapStopLocate();
+    const c = pos.coords;
+    if (best && c.accuracy >= best.acc) return;
+    best = MX.me = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, rough: c.accuracy > ROUGH_ACC };
+    const ll = [best.lat, best.lon];
+    MX.meM ||= L.circleMarker(ll, { radius: 7, color: "#fff", weight: 3, fillColor: "#3b82f6", fillOpacity: 1, interactive: false });
+    MX.accC ||= L.circle(ll, { radius: 1, color: "#3b82f6", weight: 1, fillColor: "#3b82f6", fillOpacity: .12, interactive: false });
+    MX.accC.setLatLng(ll).setRadius(best.acc).addTo(MX.map);
+    MX.meM.setLatLng(ll).addTo(MX.map).bringToFront();
+    mapMeChip();
+    if (keep) mapSelect(MX.sel);  // 更新距離
+    else if (!MX.dragged) {
+      MX.map.setView(ll, best.rough ? 14 : 16);
+      if (!MX.sel && !$("#mapxQ").value) mapNearby();
+    }
+    if (best.acc <= GOOD_ACC) settle();
+    else mapMsg(`定位校正中…（精準度約 ±${Math.round(best.acc)} m）`);
+  }, err => {
+    if (!live()) return mapStopLocate();
+    if (best) return settle();
+    mapStopLocate();
+    mapMeChip();
+    mapMsg(err.code === 1 ? "未允許定位，請到瀏覽器設定開啟位置權限"
+      : err.code === 2 ? "無法定位，請確認手機的定位服務（GPS）已開啟" : "GPS 訊號不足，請到戶外或稍後按 ◎ 再試", 6000);
+  }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
+  MX.watchT = setTimeout(settle, 25000);
+}
+
+// 目前位置列：地址（OpenStreetMap 反查）＋精準度；點一下回到目前位置並列出附近的
+function mapMeChip() {
+  const b = $("#mapxMe"), me = MX.me;
+  b.hidden = !me;
+  if (me) b.innerHTML = `<span class="t">📍 <b>目前位置</b>　${esc(MX.addr || `${me.lat.toFixed(5)}, ${me.lon.toFixed(5)}`)}</span>
+    <span class="a">±${Math.round(me.acc)} m</span>`;
+}
+async function mapAddress(me) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=zh-TW` +
+      `&lat=${me.lat.toFixed(6)}&lon=${me.lon.toFixed(6)}`);
+    const j = await r.json(), a = j.address || {};
+    const no = a.house_number ? a.house_number.replace(/號?$/, "號") : "";
+    const addr = [a.city || a.county, a.town || a.city_district || a.district || a.suburb, a.road, no].filter(Boolean).join("")
+      || (j.display_name || "").split(",").map(x => x.trim()).filter(x => !/^\d{3,6}$/.test(x)).reverse().slice(1).join("");
+    if (MX.me === me && addr) { MX.addr = addr; mapMeChip(); }
+  } catch {}  // 查不到地址就顯示座標
+}
+$("#mapxMe").onclick = () => {
+  if (!MX.me || !MX.map) return;
+  MX.dragged = false;
+  MX.map.setView([MX.me.lat, MX.me.lon], 17);
+  mapNearby();
+};
+$("#mapxKind").onclick = e => {
+  const b = e.target.closest("button[data-k]");
+  if (b && b.dataset.k !== MX.kind) pickPlace(b.dataset.k, null, true);
+};
+
+function mapList(title, hits) {
+  const res = $("#mapxRes");
+  res.innerHTML = (title ? `<li style="cursor:default"><div class="a"><b>${esc(title)}</b></div></li>` : "") +
+    (hits.length ? hits.map(([d, p], i) => `<li data-i="${i}"><div>${esc(p.label)}</div>
+      <div class="a">${esc([p.addr, (MX.me?.rough ? "約 " : "") + distTxt(d)].filter(Boolean).join(" · "))}</div></li>`).join("")
+    : `<li style="cursor:default"><div class="a">找不到符合的${MAP_KINDS[MX.kind].noun}</div></li>`);
+  res.hidden = false;
+  res.onclick = e => {
+    const li = e.target.closest("li[data-i]");
+    if (!li) return;
+    const p = hits[li.dataset.i][1];
+    res.hidden = true; $("#mapxQ").blur();
+    MX.map.setView([p.lat, p.lon], 17);
+    mapSelect(p);
+  };
+}
+// 目前位置附近（依距離排序）
+function mapNearby() {
+  if (!MX.me) return;
+  const hits = MX.places.map(p => [distKm(MX.me, p), p]).sort((a, b) => a[0] - b[0]).slice(0, 10);
+  mapList(`📍 目前位置附近的${MAP_KINDS[MX.kind].noun}`, hits);
+}
+
+function mapSearch() {
+  const q = norm($("#mapxQ").value.trim()), res = $("#mapxRes");
+  if (!MX.map) return;
+  if (!q) { if (MX.me) mapNearby(); else res.hidden = true; return; }
+  const c = MX.map.getCenter(), ref = MX.me || { lat: c.lat, lon: c.lng };
+  const hits = MX.places.filter(p => norm(`${p.label} ${p.addr || ""}`).includes(q))
+    .map(p => [distKm(ref, p), p]).sort((a, b) => a[0] - b[0]).slice(0, 40);
+  mapList("", hits);
+}
+function mapClose() { $("#mapx").hidden = true; mapMsg(""); mapStopLocate(); }
+$("#mapxQ").oninput = mapSearch;
+$("#mapxQ").onfocus = mapSearch;
+$("#mapxQ").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("#mapxQ").blur(); } };
+$("#mapxClose").onclick = mapClose;
+$("#mapxLoc").onclick = () => mapLocate(false);
+$("#mapxUse").onclick = () => {
+  if (!MX.sel) return;
+  if (MX.browse) {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${MX.sel.lat},${MX.sel.lon}`, "_blank");
+    return;
+  }
+  MX.input.value = MX.sel.label;
+  MX.input.dispatchEvent(new Event("change", { bubbles: true }));  // 加油站：重新判斷自助折扣
+  mapClose();
 };
 
 // 手機端先檢查一次（離線時電腦無法檢查，暫存前就要擋下明顯的錯誤）
