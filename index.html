@@ -668,6 +668,7 @@ const PAGES = [
   { id: "remind", icon: "⏰", name: "保養提醒", desc: "依最近一次更換的里程與日期推算下次保養；稅費、保險依到期日提醒" },
   { id: "stats", icon: "📊", name: "統計報表", short: "報表", desc: "油耗趨勢、每月花費與企業版 PRO 報表", tab: true },
   { id: "vehicles", icon: "🏍", name: "車輛管理", desc: "管理名下所有機車" },
+  { id: "loan", icon: "💰", name: "車貸管理", desc: "分期明細與每期繳款確認（依目前車輛）" },
   { id: "fault", icon: "🚨", name: "故障排除", desc: "故障燈、閃爍碼與車況異常的說明及處理方式" },
   { id: "history", icon: "📈", name: "油價歷史", desc: "中油 92 / 95 / 98 歷年牌價走勢與調價紀錄" },
   { id: "nearby", icon: "📍", name: "附近地圖", desc: "顯示目前位置與附近的加油站、機車行" },
@@ -704,7 +705,7 @@ function render() {
     return;
   }
   ({ overview: pOverview, fuel: pFuel, maint: pMaint, remind: pRemind, stats: pStats, vehicles: pVehicles,
-     history: pHistory, nearby: pNearby, more: pMore, fault: pFault }[p.id])(v, p, fab);
+     history: pHistory, nearby: pNearby, more: pMore, fault: pFault, loan: pLoan }[p.id])(v, p, fab);
   v.insertAdjacentHTML("afterbegin", statusBanner());
   drawCharts();
 }
@@ -774,7 +775,8 @@ function pricesCard() {
       <div class="d ${d > 0 ? "up" : d < 0 ? "down" : "c-muted"}">${d > 0 ? "▲" + d.toFixed(1) : d < 0 ? "▼" + (-d).toFixed(1) : "— 持平"}</div></div>`;
   }).join("");
   return `<div class="card" onclick="location.hash='history'" style="cursor:pointer">
-    <div class="card-head"><h2>${upcoming ? "最新油價" : "今日油價"}</h2><span class="sub">中油牌價 · ${eff.slice(5).replace("-", "/")} 起生效 ›</span></div>
+    <div class="card-head"><h2>${upcoming ? "最新油價" : "今日油價"}</h2><span class="sub">中油牌價 · ${eff.slice(5).replace("-", "/")} 起生效
+      ${RELAY ? "" : `<button class="btn sm" onclick="event.stopPropagation();refreshPrices(this)">↻</button>`} ›</span></div>
     <div class="prices">${cells}</div></div>`;
 }
 
@@ -799,7 +801,7 @@ function grouped(rows, itemFn, amount) {
 
 function pFuel(v, p, fab) {
   const rows = [...S.fuel].sort((a, b) => b.date.localeCompare(a.date) || b.odometer - a.odometer);
-  v.innerHTML = head(p) + (rows.length ? grouped(rows, fuelItem, r => r.total)
+  v.innerHTML = head(p, rows.length ? dlBtn("/api/export/csv?kind=fuel", "⬇ CSV") : "") + (rows.length ? grouped(rows, fuelItem, r => r.total)
     : `<div class="card empty"><b>尚無加油紀錄</b>按右下角「＋ 加油」新增第一筆</div>`) +
     `<p class="sub" style="text-align:center;margin-top:16px">油耗 = 兩次加滿之間的里程 ÷ 期間總加油量</p>`;
   fab.hidden = false; fab.textContent = "＋ 加油"; fab.onclick = () => fuelForm();
@@ -880,7 +882,7 @@ function maintItem(r) {
 
 function pMaint(v, p, fab) {
   const rows = [...S.maint].sort((a, b) => b.date.localeCompare(a.date) || b.odometer - a.odometer);
-  v.innerHTML = head(p) + (rows.length ? grouped(rows, maintItem, r => r.cost)
+  v.innerHTML = head(p, rows.length ? dlBtn("/api/export/csv?kind=maint", "⬇ CSV") : "") + (rows.length ? grouped(rows, maintItem, r => r.cost)
     : `<div class="card empty"><b>尚無保養紀錄</b>按右下角「＋ 保養」新增第一筆</div>`);
   fab.hidden = false; fab.textContent = "＋ 保養"; fab.onclick = () => maintForm();
 }
@@ -980,7 +982,9 @@ function setStats(m) { statsMode = m; store.set("motolog_stats", m); render(); }
 function pStats(v, p) {
   const seg = `<div class="seg"><button class="${statsMode === "basic" ? "on" : ""}" onclick="setStats('basic')">基本報表</button>
     <button class="${statsMode === "pro" ? "on" : ""}" onclick="setStats('pro')">★ 企業版 PRO</button></div>`;
-  v.innerHTML = head(p, seg) + (statsMode === "pro" ? proHtml() : basicHtml());
+  const dl = statsMode === "pro" && S.pro ? `<div class="row" style="margin:-4px 0 12px">
+    ${dlBtn("/api/export/pdf", "📄 下載 PDF 報表", "primary")}${dlBtn("/api/export/csv?kind=pro", "⬇ CSV")}</div>` : "";
+  v.innerHTML = head(p, seg) + dl + (statsMode === "pro" ? proHtml() : basicHtml());
 }
 
 function basicHtml() {
@@ -1085,7 +1089,7 @@ function loanDue(x) {
 function loanBanner() {
   return S.vehicles.map(x => [x, loanDue(x)]).filter(([, d]) => d && d.days <= 3).map(([x, d]) => `
     <div class="card" style="border-left:4px solid var(--${d.days > 0 ? "amber" : "danger"})"><b>💰 車貸繳款提醒：${esc(x.name)}</b>
-      <div class="sub">第 ${d.period}/${d.months} 期 ${money(d.pay)} · 繳款日 ${d.date}（${d.days === 0 ? "今天" : d.days === 1 ? "明天" : d.days > 0 ? d.days + " 天後" : "已逾期 " + -d.days + " 天"}）· 繳完請在電腦版確認</div></div>`).join("");
+      <div class="sub">第 ${d.period}/${d.months} 期 ${money(d.pay)} · 繳款日 ${d.date}（${d.days === 0 ? "今天" : d.days === 1 ? "明天" : d.days > 0 ? d.days + " 天後" : "已逾期 " + -d.days + " 天"}）· 繳完請到「車貸管理」按 ✔ 已繳</div></div>`).join("");
 }
 // 車齡：從購車日期算到今天，例如「2 年 1 個月 28 天」（與電腦版 car_age 相同）
 function carAge(d) {
@@ -1181,7 +1185,8 @@ function histStart() {
 function pHistory(v, p) {
   const seg = `<div class="seg">${RANGES.map(([k, l]) => `<button class="${k === histRange ? "on" : ""}" onclick="setHist('${k}')">${l}</button>`).join("")}</div>`;
   if (!S.prices || !Object.keys(S.prices).length) {
-    v.innerHTML = head(p) + `<div class="card empty"><b>尚未取得油價資料</b>請在電腦上的 MotoLog 按 F5 更新油價</div>`;
+    v.innerHTML = head(p) + `<div class="card empty"><b>尚未取得油價資料</b>${RELAY ? "請在電腦上的 MotoLog 按 F5 更新油價"
+      : `<br><button class="btn primary" onclick="refreshPrices(this)">↻ 更新油價</button>`}</div>`;
     return;
   }
   const start = histStart(), t = TODAY(), names = ["92無鉛", "95無鉛", "98無鉛"];
@@ -1199,7 +1204,7 @@ function pHistory(v, p) {
   const now = priceOn("95無鉛", t), first = priceOn("95無鉛", start) ?? r95[0]?.[1] ?? now;
   const diff = +((now || 0) - (first || 0)).toFixed(1);
   const pts = r95.length ? r95.map(x => x[1]) : [now];
-  v.innerHTML = head(p) + `<div style="margin:-4px 0 12px">${seg}</div>
+  v.innerHTML = head(p, RELAY ? "" : `<button class="btn sm" onclick="refreshPrices(this)">↻ 更新油價</button>`) + `<div style="margin:-4px 0 12px">${seg}</div>
     <div class="grid g5">
       ${stat("目前 95 牌價", now ? now.toFixed(1) + " 元" : "—", null, "", "sm")}
       ${stat("區間漲跌（95）", `${diff > 0 ? "+" : ""}${diff.toFixed(1)} 元`, null, "", "sm", diff > 0 ? "c-danger" : diff < 0 ? "c-ok" : "")}
@@ -1230,8 +1235,124 @@ function pMore(v, p) {
   const links = PAGES.filter(x => !x.tab);
   v.innerHTML = head(p) + `<div class="card more">${links.map(x =>
     `<a href="#${x.id}"><span class="i">${x.icon}</span><span><b>${x.name}</b><br><span class="d">${x.desc}</span></span></a>`).join("")}</div>
+    <div class="card"><div class="card-head"><h2>設定與資料</h2></div><ul class="list">
+      <li class="item" onclick="discountForm()"><div class="main"><div class="t1">⛽ 自助加油折扣</div>
+        <div class="t2">每公升折 ${fmt(S.discount.value)} 元 · ${S.discount.cpc_only ? "只套用在中油" : "所有加油站"}</div></div></li>
+      ${RELAY ? "" : `<li class="item" onclick="refreshPrices()"><div class="main"><div class="t1">↻ 更新油價</div>
+        <div class="t2">${S.price_fetched ? "上次更新 " + S.price_fetched.replace("T", " ") : "尚未取得油價"}</div></div></li>`}
+      <li class="item" onclick="download('/api/export/pdf')"><div class="main"><div class="t1">📄 下載 PRO 報表 (PDF)</div>
+        <div class="t2">目前車輛的企業版 PRO 報表</div></div></li>
+      <li class="item" onclick="download('/api/export/csv?kind=fuel')"><div class="main"><div class="t1">⬇ 下載加油紀錄 (CSV)</div>
+        <div class="t2">可用 Excel 開啟</div></div></li>
+      <li class="item" onclick="download('/api/export/csv?kind=maint')"><div class="main"><div class="t1">⬇ 下載保養紀錄 (CSV)</div>
+        <div class="t2">可用 Excel 開啟</div></div></li>
+      <li class="item" onclick="download('/api/backup')"><div class="main"><div class="t1">💾 下載資料庫備份</div>
+        <div class="t2">整個 moto_records.db（所有車輛），換電腦或重灌時可還原</div></div></li>
+    </ul></div>
+    ${RELAY ? `<p class="sub" style="text-align:center">雲端同步模式只能修改折扣；下載檔案、更新油價需要直連電腦</p>` : ""}
     <p class="sub" style="text-align:center;margin-top:18px">${esc(S.app.title)} v${esc(S.app.version)}<br>
     資料存在電腦上的 moto_records.db，手機只是遠端操作<br>在瀏覽器選單點「加入主畫面」，用起來就像 App</p>`;
+}
+
+// ---------------------------------------------------------------- 下載檔案、設定、更新油價（需要直連電腦）
+const dlBtn = (path, label, cls = "") => RELAY ? "" : `<button class="btn sm ${cls}" onclick="download('${path}')">${label}</button>`;
+async function download(path) {
+  if (RELAY) return toast("雲端同步模式無法下載檔案，請在家用 Wi-Fi 或 Tailscale 直連電腦時再下載", 4500);
+  toast("正在準備檔案…", 1800);
+  try {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 60000);
+    let r;
+    try {
+      r = await fetch(path + (path.includes("?") ? "&" : "?") + `v=${VID}`,
+        { headers: { "X-Key": KEY }, cache: "no-store", signal: ctl.signal });
+    } catch { throw new Error("無法連線到電腦，請確認電腦上的 MotoLog 有開啟手機版"); }
+    finally { clearTimeout(timer); }
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `錯誤 ${r.status}`); }
+    const m = (r.headers.get("Content-Disposition") || "").match(/filename\*=UTF-8''([^;]+)/);
+    const url = URL.createObjectURL(await r.blob());
+    const a = Object.assign(document.createElement("a"), { href: url, download: m ? decodeURIComponent(m[1]) : "motolog" });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast(e.message, 4500); }
+}
+
+async function refreshPrices(btn) {
+  if (RELAY) return toast("雲端同步模式無法更新油價，請在電腦上的 MotoLog 按 F5", 4000);
+  const label = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = "更新中…"; }
+  try {
+    await api("/api/prices/refresh", {}, 60000);  // 電腦向中油抓三種油品，可能要十幾秒
+    toast("油價已更新");
+    await load(true);
+  } catch (e) {
+    toast(e.network ? "無法連線到電腦，請確認電腦上的 MotoLog 有開啟手機版" : e.message, 4500);
+    if (btn?.isConnected) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
+function discountForm() {
+  openSheet("自助加油折扣", `
+    <label class="f"><span>自助折扣 (元/公升)</span><input name="value" inputmode="decimal" value="${fmt(S.discount.value)}"></label>
+    <label class="check"><input type="checkbox" name="cpc_only" ${S.discount.cpc_only ? "checked" : ""}>只套用在中油加油站</label>
+    <p class="sub">中油自助加油汽油每公升折 0.8 元；其他品牌依各站公告。之後新增的加油紀錄才會套用</p>`,
+    async data => {
+      const value = numv(data.value);
+      need(value != null && value >= 0, "請輸入正確的折扣（0 以上的數字）");
+      const ok = await save("/api/discount", { value, cpc_only: data.cpc_only }, `⚙ 自助折扣改為每公升 ${fmt(value)} 元`);
+      if (ok) { S.discount = { value, cpc_only: !!data.cpc_only }; render(); }
+      return ok;
+    });
+}
+
+// ---------------------------------------------------------------- 車貸管理（依目前車輛；明細由電腦計算）
+function pLoan(v, p) {
+  const x = S.vehicles.find(r => r.id === VID), plan = x && vehicleLoan(x), rows = S.loan || [];
+  if (!plan || !rows.length) {
+    v.innerHTML = head(p) + `<div class="card empty"><b>${esc(x?.name || "")} 沒有設定車貸</b>
+      到「車輛管理」編輯車輛，填入車貸金額、利率與期數<br><br><a class="btn" href="#vehicles">前往車輛管理</a></div>`;
+    return;
+  }
+  const paid = rows.filter(r => r.paid), left = rows.filter(r => !r.paid);
+  const due = left.find(r => r.date), sum = list => list.reduce((a, r) => a + r.pay, 0);
+  const dueTxt = d => d === 0 ? "今天" : d === 1 ? "明天" : d > 0 ? `${d} 天後` : `已逾期 ${-d} 天`;
+  v.innerHTML = head(p) + `<div class="grid g4">
+      ${stat("每月應繳", money(plan.pay), `共 ${plan.months} 期 · 年利率 ${fmt(x.loan_rate || 0)}%`, "primary")}
+      ${stat("已繳期數", `${paid.length} / ${plan.months}`, `已繳 ${money(sum(paid))}`, "ok")}
+      ${stat("剩餘應繳", money(sum(left)), `總利息 ${money(plan.interest)}`, "amber")}
+      ${stat("下次繳款", due ? due.date : left.length ? "—" : "已繳清", due ? dueTxt(due.days) : "", "violet", "",
+        due && due.days < 0 ? "c-danger" : "")}
+    </div>
+    ${left.length ? `<div class="card"><div class="card-head"><h2>未繳 ${left.length} 期</h2></div>
+      <ul class="list">${left.map(loanItem).join("")}</ul></div>` : ""}
+    ${paid.length ? `<details class="card"${left.length ? "" : " open"}><summary class="card-head" style="cursor:pointer">
+      <h2>已繳 ${paid.length} 期</h2><span class="sub">點開查看 ›</span></summary>
+      <ul class="list">${[...paid].reverse().map(loanItem).join("")}</ul></details>` : ""}
+    <p class="sub" style="text-align:center;margin-top:16px">繳完按「✔ 已繳」確認，就不會再提醒；按「改回未繳」可取消</p>`;
+}
+function loanItem(r) {
+  const st = r.paid ? ["已繳", "ok"] : r.days == null ? ["未繳", "none"] : r.days < 0 ? ["已逾期", "over"]
+    : r.days <= 3 ? ["即將到期", "soon"] : ["未繳", "none"];
+  return `<li class="item"><div class="main"><div class="t1">第 ${r.period} 期<span class="badge ${st[1]}">${st[0]}</span></div>
+      <div class="t2">繳款日 ${r.date || "未設定"}${r.paid && r.paid_on && r.paid_on !== r.date ? ` · ${r.paid_on} 繳` : ""}</div>
+      <div class="t2">${r.interest ? `本金 ${money(r.principal)} · 利息 ${money(r.interest)} · ` : ""}剩餘本金 ${money(r.balance)}</div></div>
+    <div class="side-v"><div class="amt num">${money(r.pay)}</div>
+      ${r.paid ? `<button class="btn sm" onclick="loanPaid(${r.period}, 0)">改回未繳</button>`
+        : `<button class="btn sm primary" onclick="loanPaid(${r.period}, 1)">✔ 已繳</button>`}</div></li>`;
+}
+async function loanPaid(period, paid) {
+  if (!confirm(paid ? `確認第 ${period} 期今天（${TODAY()}）已經繳款了嗎？` : `要把第 ${period} 期改回「未繳」嗎？`)) return;
+  try {
+    const ok = await save("/api/loan/paid", { period, paid, paid_on: TODAY() },
+      paid ? `💰 車貸第 ${period} 期已繳` : `↩ 車貸第 ${period} 期改回未繳`);
+    if (ok) {  // 先更新畫面（離線暫存時也看得到），連上電腦後會換成電腦的資料
+      const r = S.loan.find(x => x.period === period), x = S.vehicles.find(v => v.id === VID);
+      if (r) Object.assign(r, { paid: !!paid, paid_on: paid ? TODAY() : null });
+      if (x) x.loan_paid = S.loan.filter(r => r.paid).map(r => r.period);
+      render();
+    }
+  } catch (e) { toast(e.message, 4500); }
 }
 
 // ---------------------------------------------------------------- 故障排除（內容由電腦版提供）
